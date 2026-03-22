@@ -28,7 +28,7 @@ This document describes the architecture implemented in the current codebase. It
   - Text -> direct `Observation`
 
 ### Multimodal perception flow (normalized before cognition)
-```
+```mermaid
 flowchart LR
 
 %% Sensors (Multimodal Inputs)
