@@ -29,11 +29,39 @@ This document describes the architecture implemented in the current codebase. It
 
 ### Multimodal perception flow (normalized before cognition)
 ```
-TextSensor  \
-AudioSensor  >-- PerceptionNormalizer --> Observation
-VisionSensor /
+flowchart LR
 
-Observation -> ShouldSpeakPolicy -> IntentRouter -> AgentOrchestrator -> AgentResponse -> Memory
+%% Sensors (Multimodal Inputs)
+TextSensor[Text Sensor]
+AudioSensor[Audio Sensor]
+VisionSensor[Vision Sensor]
+
+%% Perception Layer
+PerceptionNormalizer[Perception Normalizer]
+Observation[Observation]
+
+%% Cognition Layer
+ShouldSpeakPolicy[Should Speak Policy]
+IntentRouter[Intent Router]
+
+%% Action Layer
+AgentOrchestrator[Agent Orchestrator]
+AgentResponse[Agent Response]
+
+%% Memory Layer
+Memory[Memory]
+
+%% Flows
+TextSensor --> PerceptionNormalizer
+AudioSensor --> PerceptionNormalizer
+VisionSensor --> PerceptionNormalizer
+
+PerceptionNormalizer --> Observation
+Observation --> ShouldSpeakPolicy
+ShouldSpeakPolicy --> IntentRouter
+IntentRouter --> AgentOrchestrator
+AgentOrchestrator --> AgentResponse
+AgentResponse --> Memory
 ```
 
 ## Runtime component diagram
