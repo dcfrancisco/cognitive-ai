@@ -1,7 +1,9 @@
 # Cognitive AI
 
 ![Java](https://img.shields.io/badge/java-21-blue)
+![Spring Boot](https://img.shields.io/badge/spring--boot-3.x-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Status](https://img.shields.io/badge/status-early--stage-orange)
 
 A cognition-first ambient AI framework that observes context, decides whether to speak, routes intent to specialized agents, and remembers selectively through curated memory.
 
