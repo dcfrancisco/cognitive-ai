@@ -38,3 +38,26 @@ Success metrics
 How to contribute
 - Open small, focused PRs with tests and rationale for behavioral changes.
 - Document new memory rules and their behavioral impact in `docs/`.
+
+## What to fix first before going public
+
+These are the highest-impact fixes:
+
+- Rewrite `README.md` around:
+	- Current status
+	- What works now
+	- Quick start
+	- API examples
+	- Roadmap
+- Add:
+	- `.env.example`
+	- sample `curl` commands
+	- expected responses
+- Add GitHub Actions:
+	- Java build
+	- test run
+- Fix code issues:
+	- `acceptCandidate()` lookup logic
+	- duplicate candidate behavior
+	- request validation
+- Add one short architecture diagram — this repo deserves it
