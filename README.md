@@ -1,5 +1,9 @@
 # Cognitive AI
 
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Java](https://img.shields.io/badge/java-21-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 A cognition-first ambient AI framework that observes context, decides whether to speak, routes intent to specialized agents, and remembers selectively through curated memory.
 
 This project is not designed as a conventional chatbot. It explores how AI can behave more like a restrained partner: aware of context, capable of silence, deliberate about memory, and explainable in how it acts.
