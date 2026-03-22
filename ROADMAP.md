@@ -18,7 +18,7 @@ Near-term (next 4–8 weeks)
 - Add Flyway migrations for episodic memory tables and vector embeddings.
 - Implement `CognitionService.shouldSpeak()` contract: decision, confidence, why.
 - Wire a simple RAG proof-of-concept using Spring AI client.
-- Add CI with `mvn -DskipTests=false test` and basic linting.
+ - Add CI with `mvn -DskipTests=false test` and basic linting.
 
 Medium-term (3–6 months)
 - Improve memory-review rules; add LLM-assisted review workflow.
