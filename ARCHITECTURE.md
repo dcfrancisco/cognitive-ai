@@ -17,6 +17,25 @@ This document describes the architecture implemented in the current codebase. It
 - `ph.francisco.config` — Spring Boot configuration support, including conditional environment setup for provider configuration.
 - `ph.francisco.values` — shared value objects.
 
+## Multimodal perception layer
+- **Multimodal Perception Layer** introduces multiple sensors that capture input from different modalities.
+  - `TextSensor`
+  - `AudioSensor`
+  - `VisionSensor`
+- **Perception Normalizer / Adapter** converts every sensor signal into the unified `Observation` model.
+  - Audio -> speech-to-text -> `Observation`
+  - Vision -> caption/detection -> `Observation`
+  - Text -> direct `Observation`
+
+### Multimodal perception flow (normalized before cognition)
+```
+TextSensor  \
+AudioSensor  >-- PerceptionNormalizer --> Observation
+VisionSensor /
+
+Observation -> ShouldSpeakPolicy -> IntentRouter -> AgentOrchestrator -> AgentResponse -> Memory
+```
+
 ## Runtime component diagram
 
 ```mermaid
@@ -77,6 +96,7 @@ flowchart TD
 ```
 
 ## Request and decision flow
+0. Sensors or external callers submit signals that are normalized into an `Observation` by the Perception Normalizer.
 1. `ObservationController` accepts `POST /api/observe` with an `Observation` payload.
 2. The controller first calls `CuratedMemoryService.observe(...)`.
    - The observation is appended to `WorkingMemory`.
@@ -87,6 +107,11 @@ flowchart TD
 4. If the decision is `SILENCE`, the controller returns HTTP `204 No Content`.
 5. If the decision is `SPEAK`, `AgentOrchestrator` selects the first `CognitiveAgent` that supports the routed intent.
 6. The selected agent returns an `AgentResponse`, and the controller responds with JSON containing decision, confidence, intent, agent name, message, and merged reasoning.
+
+## Why multimodal perception
+- Multimodal perception matters because context arrives through text, audio, and vision; all are needed for complete situational awareness.
+- Normalization is required so cognition operates on a single `Observation` model, keeping decisions explainable and auditable.
+- Sensors must not bypass the cognitive loop; every signal must go through `ShouldSpeakPolicy`, `IntentRouter`, and the agent layer to preserve the cognition-first philosophy.
 
 ## Memory architecture
 

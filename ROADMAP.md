@@ -9,10 +9,13 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - Production-ready backend with tests, CI, deployment artifacts, and a lightweight demo experience.
 - Modular cognition loop with clear boundaries between perception, decision, routing, memory, and action.
 - Optional LLM-assisted cognition layer for reflection, summarization, and memory review.
+- Multimodal perception (text, audio, vision) unified into a single Observation model.
+- Extensible sensor adapters for new input types.
 
 ## Milestones
 - **MVP (v0.1):** core cognition loop, working memory, basic rules for `should_speak`, intent routing, basic agent layer, unit tests.
 - **v0.2:** episodic store persistence (Postgres + pgvector), Flyway migrations, memory candidate pipeline, review endpoints.
+- **v0.3a: Multimodal perception foundation:** text, audio, and vision sensor interfaces, perception normalization layer, audio (STT) prototype integration, basic vision caption/detection integration, unified Observation pipeline.
 - **v0.3:** simple UI / demo page for observing the cognitive loop in action.
 - **v0.5:** semantic memory (RAG), Spring AI integration, basic TTS/STT adapter demo, optional LLM-assisted reflection.
 - **v0.7:** richer orchestration, improved recall, LLM-assisted memory review, stronger observability.
@@ -32,6 +35,10 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
   - recent working memory / candidates
 - Add a minimal architecture diagram to the repo.
 - Add `.env.example`, sample `curl` commands, and expected responses.
+- Introduce Perception Layer abstraction (Text, Audio, Vision).
+- Implement Perception Normalizer to unify inputs into Observation.
+- Add stub/mock `AudioSensor` and `VisionSensor`.
+- Extend demo console to simulate audio/vision observations.
 
 ## Medium-term (3–6 months)
 - Improve memory-review rules; add LLM-assisted review workflow.
@@ -44,6 +51,10 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - Add metrics and observability for decisions and memory retention.
 - Improve recall behavior beyond recent working memory.
 - Add better policy controls for when LLM assistance is allowed vs disabled.
+- Real STT integration for `AudioSensor`.
+- Vision captioning or object detection integration.
+- Metadata enrichment (tone, confidence, scene context).
+- Improved routing using multimodal context.
 
 ## Long-term (6+ months)
 - External integrations (mobile, desktop voice agents), privacy/consent flows.
@@ -54,6 +65,10 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
   - optional LLM reasoning layer
   - long-term semantic and episodic memory alignment
 - Support multiple partner-style agent personas on the same cognitive core.
+- Continuous perception streams (microphone, camera).
+- Context fusion across modalities (text + audio + vision).
+- Attention mechanisms for prioritizing signals.
+- Privacy controls for sensor data.
 
 ## Success metrics
 - False-positive speak rate < X% in pilot tests.
