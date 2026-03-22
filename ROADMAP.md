@@ -1,63 +1,91 @@
 # ROADMAP
 
-Vision
-- Build an ambient, partner-style cognitive AI that senses context, reasons over curated memory, and speaks only when appropriate.
+## Vision
+Build an ambient, partner-style cognitive AI that senses context, reasons over curated memory, and speaks only when appropriate.
 
-Goals
+## Goals
 - Curated memory pipeline (candidate → summary → rule review → episodic store).
-- Reliable should_speak decision service with explainability and confidence.
-- Production-ready backend with tests, CI, and deployment artifacts.
+- Reliable `should_speak` decision service with explainability and confidence.
+- Production-ready backend with tests, CI, deployment artifacts, and a lightweight demo experience.
+- Modular cognition loop with clear boundaries between perception, decision, routing, memory, and action.
+- Optional LLM-assisted cognition layer for reflection, summarization, and memory review.
 
-Milestones
-- MVP (v0.1): core cognition loop, working memory, basic rules for `should_speak`, unit tests.
-- v0.2: episodic store persistence (Postgres + pgvector), Flyway migrations, memory candidate pipeline.
-- v0.5: semantic memory (RAG), Spring AI integration, basic TTS/STT adapter demo.
-- v1.0: hardened release — CI/CD, integration tests, deployable container, docs and examples.
+## Milestones
+- **MVP (v0.1):** core cognition loop, working memory, basic rules for `should_speak`, intent routing, basic agent layer, unit tests.
+- **v0.2:** episodic store persistence (Postgres + pgvector), Flyway migrations, memory candidate pipeline, review endpoints.
+- **v0.3:** simple UI / demo page for observing the cognitive loop in action.
+- **v0.5:** semantic memory (RAG), Spring AI integration, basic TTS/STT adapter demo, optional LLM-assisted reflection.
+- **v0.7:** richer orchestration, improved recall, LLM-assisted memory review, stronger observability.
+- **v1.0:** hardened release — CI/CD, integration tests, deployable container, docs, examples, and public-project polish.
 
-Near-term (next 4–8 weeks)
+## Near-term (next 4–8 weeks)
 - Add Flyway migrations for episodic memory tables and vector embeddings.
-- Implement `CognitionService.shouldSpeak()` contract: decision, confidence, why.
+- Implement and harden `CognitionService.shouldSpeak()` contract: decision, confidence, why.
 - Wire a simple RAG proof-of-concept using Spring AI client.
- - Add CI with `mvn -DskipTests=false test` and basic linting.
+- Add CI with `mvn -DskipTests=false test` and basic linting.
+- Add a **simple UI / demo page** to show:
+  - observation input
+  - decision result
+  - routed intent
+  - selected agent
+  - explainability reasons
+  - recent working memory / candidates
+- Add a minimal architecture diagram to the repo.
+- Add `.env.example`, sample `curl` commands, and expected responses.
 
-Medium-term (3–6 months)
+## Medium-term (3–6 months)
 - Improve memory-review rules; add LLM-assisted review workflow.
+- Add **LLM integration layer** for:
+  - reflective responses
+  - summarization of candidate memory
+  - semantic recall assistance
+  - optional decision support (kept auditable and bounded by policy)
 - Add TTS/STT integration and a voice-first demo loop.
 - Add metrics and observability for decisions and memory retention.
+- Improve recall behavior beyond recent working memory.
+- Add better policy controls for when LLM assistance is allowed vs disabled.
 
-Long-term (6+ months)
+## Long-term (6+ months)
 - External integrations (mobile, desktop voice agents), privacy/consent flows.
 - Evaluate federated/local embeddings for privacy-preserving memory.
 - Production-grade scaling and RBAC for multi-user scenarios.
+- Expand from rule-based cognition to hybrid cognition:
+  - policy-first deterministic safety rails
+  - optional LLM reasoning layer
+  - long-term semantic and episodic memory alignment
+- Support multiple partner-style agent personas on the same cognitive core.
 
-Success metrics
+## Success metrics
 - False-positive speak rate < X% in pilot tests.
 - Memory retention precision (meaningful saved items) > Y% after review.
 - End-to-end pipeline reliability and CI test coverage > 70%.
+- Demo usability: a new visitor can run the project and see the cognitive loop within 10 minutes.
+- Explainability completeness: every non-silent response includes decision, intent, agent, and reasons.
 
-How to contribute
+## Public project readiness track
+### What to fix first before going public
+- Rewrite `README.md` around:
+  - current status
+  - what works now
+  - quick start
+  - API examples
+  - roadmap
+- Add:
+  - `.env.example`
+  - sample `curl` commands
+  - expected responses
+- Add GitHub Actions:
+  - Java build
+  - test run
+- Fix code issues:
+  - `acceptCandidate()` lookup logic
+  - duplicate candidate behavior
+  - request validation
+- Add one short architecture diagram.
+- Add a lightweight UI / demo page so the project is easier to understand at a glance.
+
+## How to contribute
 - Open small, focused PRs with tests and rationale for behavioral changes.
 - Document new memory rules and their behavioral impact in `docs/`.
-
-## What to fix first before going public
-
-These are the highest-impact fixes:
-
-- Rewrite `README.md` around:
-	- Current status
-	- What works now
-	- Quick start
-	- API examples
-	- Roadmap
-- Add:
-	- `.env.example`
-	- sample `curl` commands
-	- expected responses
-- Add GitHub Actions:
-	- Java build
-	- test run
-- Fix code issues:
-	- `acceptCandidate()` lookup logic
-	- duplicate candidate behavior
-	- request validation
-- Add one short architecture diagram — this repo deserves it
+- Keep cognition changes auditable and explainable.
+- Prefer modular additions over deeply coupled intelligence layers.
