@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cognitive-ai
+
+  # Spring AI (OpenAI starter)
+  # This project can run without any LLM provider configured.
+  # We conditionally enable OpenAI auto-config only when an API key is present.
+  # Set `SPRING_AI_OPENAI_API_KEY` (or `OPEN_API_KEY` via docker-compose.yml) to enable.
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/cognitive_ai}
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

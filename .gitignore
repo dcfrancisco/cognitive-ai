@@ -1,0 +1,36 @@
+# Java / Maven
+/target/
+*.jar
+*.war
+*.ear
+
+# Build directories
+/build/
+.gradle/
+
+# IDEs and editors
+.idea/
+*.iml
+.vscode/
+/.classpath
+/.project
+/.settings/
+out/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+*.env
+
+# Maven wrapper (keep wrapper files if you commit them) - adjust if you track wrapper jar
+#.mvn/wrapper/maven-wrapper.jar
+
+# Temporary files
+*~
+*.tmp

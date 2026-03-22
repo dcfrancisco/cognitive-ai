@@ -1,5 +1,7 @@
 # Cognitive AI (Ambient Companion)
 
+[![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20a%20Coffee-yellow.svg)](https://www.buymeacoffee.com/dcfrancisco) [![Sponsor](https://img.shields.io/badge/Sponsor-Bitcoin-orange.svg)](https://mempool.space/address/bc1qz7hlw44akh8vxfjjt5njnyld8ut6hc3gmz20dr)
+
 A partner-style ambient cognitive AI that:
 - Observes context
 - Reasons over memory
@@ -58,5 +60,6 @@ Contribution
 - Explain how changes respect cognition-first and curated memory.
 - Document any new memory review rules and their behavioral impact.
 
+
 License
-- To be decided (e.g., MIT or Apache-2.0). Add a LICENSE file when chosen.
+- MIT License — see [LICENSE](LICENSE)

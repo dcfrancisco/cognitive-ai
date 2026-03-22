@@ -1,0 +1,13 @@
+# Ignore build artifacts and local config
+target/
+.mvn/
+.git/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# local env / logs
+.env
+logs/
+
