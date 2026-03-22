@@ -1,0 +1,54 @@
+flowchart TD
+  subgraph HTTP[HTTP / MVC layer]
+    OC[ObservationController\nPOST /api/observe]
+    MRC[MemoryReviewController\nreview endpoints]
+    DMC[DemoMemoryController\nGET /api/demo/working-memory]
+    DPC[DemoPageController\nGET /demo]
+  end
+
+  subgraph COG[Cognition layer]
+    DE[DecisionEngine]
+    SSP[ShouldSpeakPolicy\nRuleBasedShouldSpeakPolicy]
+    IR[IntentRouter]
+  end
+
+  subgraph AGENTS[Agent layer]
+    AO[AgentOrchestrator]
+    MCA[MemoryCaptureAgent]
+    MRA[MemoryRecallAgent]
+    RA[ReflectionAgent]
+  end
+
+  subgraph MEMORY[Memory layer]
+    CMS[CuratedMemoryService]
+    WM[WorkingMemory\nin-process ring buffer]
+    MCR[MemoryCandidateRepository]
+    EMR[EpisodicMemoryRepository]
+  end
+
+  subgraph DB[PostgreSQL]
+    MC[(memory_candidate)]
+    EM[(episodic_memory)]
+    TRG[pg_trgm index on lower summary]
+    VEC[pgvector embedding column]
+  end
+
+  OC --> CMS
+  OC --> DE
+  DE --> SSP
+  DE --> IR
+  DE --> AO
+  AO --> MCA
+  AO --> MRA
+  AO --> RA
+
+  CMS --> WM
+  CMS --> MCR
+  MRC --> CMS
+  DMC --> CMS
+
+  MCR --> MC
+  EMR --> EM
+  CMS -->|accept candidate| EMR
+  TRG --> MC
+  VEC --> EM

@@ -1,0 +1,8 @@
+flowchart LR
+    A[Perception / Observation] --> B[Decision: Should Speak?]
+    B -->|No| G[Silence]
+    B -->|Yes| C[Intent Interpretation]
+    C --> D[Agent Routing]
+    D --> E[Action / Response]
+    E --> F[Memory Update]
+    F --> A

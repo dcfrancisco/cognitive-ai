@@ -1,0 +1,17 @@
+flowchart LR
+  subgraph SENSORS[Sensors]
+    TS[TextSensor]
+    AS[AudioSensor]
+    VS[VisionSensor]
+  end
+
+  SENSORS --> PN[PerceptionNormalizer / Adapter]
+  PN --> OBS[Observation]
+  OBS --> SSP[ShouldSpeakPolicy]
+  SSP --> IR[IntentRouter]
+  IR --> AO[AgentOrchestrator]
+  AO --> AR[AgentResponse]
+  AR --> MEM[Memory / CuratedMemoryService]
+
+  classDef sensor fill:#f9f,stroke:#333,stroke-width:1px;
+  class TS,AS,VS sensor;
