@@ -1,6 +1,5 @@
 # Cognitive AI
 
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Java](https://img.shields.io/badge/java-21-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
