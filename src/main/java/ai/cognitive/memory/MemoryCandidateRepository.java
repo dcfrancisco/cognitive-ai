@@ -57,6 +57,52 @@ public class MemoryCandidateRepository {
                 status.name(), reviewerNote, id);
     }
 
+    public MemoryCandidate findById(UUID id) {
+        var list = jdbcTemplate.query(
+                """
+                        SELECT id, created_at, source, summary, rationale, tags, status, reviewer_note
+                        FROM memory_candidate
+                        WHERE id = ?
+                        """,
+                (rs, rowNum) -> map(rs),
+                id);
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    public boolean pendingExistsBySummary(String summary) {
+        try {
+            Integer one = jdbcTemplate.queryForObject(
+                    "SELECT 1 FROM memory_candidate WHERE status = 'PENDING' AND summary = ? LIMIT 1",
+                    Integer.class,
+                    summary);
+            return one != null;
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check for a pending candidate whose summary is similar to the provided summary
+     * using Postgres pg_trgm similarity. Requires pg_trgm extension and a trigram
+     * index on lower(summary) for performance.
+     *
+     * @param summary text to compare
+     * @param similarityThreshold value in [0,1], higher means stricter match
+     * @return true if a similar pending candidate exists
+     */
+    public boolean pendingSimilarExists(String summary, double similarityThreshold) {
+        try {
+            Integer one = jdbcTemplate.queryForObject(
+                    "SELECT 1 FROM memory_candidate WHERE status = 'PENDING' AND similarity(lower(summary), lower(?)) >= ? LIMIT 1",
+                    Integer.class,
+                    summary,
+                    similarityThreshold);
+            return one != null;
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return false;
+        }
+    }
+
     private static MemoryCandidate map(ResultSet rs) throws SQLException {
         UUID id = (UUID) rs.getObject("id");
         Instant createdAt = rs.getTimestamp("created_at").toInstant();

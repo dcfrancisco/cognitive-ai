@@ -15,14 +15,21 @@ flowchart TD
     MC[MemoryReviewController]
   end
 
-  OC -->|POST /api/observe| CS[CognitionService]
-  CS --> WM[WorkingMemory]
-  CS --> SBP[ShouldSpeakPolicy]
-  CS --> CMS[CuratedMemoryService]
+  OC -->|POST /api/observe| DE[DecisionEngine]
+  DE --> WM[WorkingMemory]
+  DE --> SBP[ShouldSpeakPolicy]
+  DE --> IR[IntentRouter]
+  IR --> AO[AgentOrchestrator]
+  AO --> AGT[Agent (MemoryCapture / Recall / Reflection)]
+  DE --> CMS[CuratedMemoryService]
   CMS --> MCR[MemoryCandidateRepository]
   MCR --> DB[(Postgres / Episodic Store)]
   CS -->|RAG| Model[Spring AI / LLM Provider]
   MC --> CMS
+
+  %% fuzzy detection note
+  MCR ---|uses pg_trgm similarity| TRG[Trigram index (pg_trgm)]
+  TRG --> DB
 
   style DB fill:#f9f,stroke:#333,stroke-width:1px
   style Model fill:#def,stroke:#333,stroke-width:1px

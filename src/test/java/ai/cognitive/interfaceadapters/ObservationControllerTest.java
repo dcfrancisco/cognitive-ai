@@ -1,7 +1,11 @@
 package ai.cognitive.interfaceadapters;
 
+import ai.cognitive.agents.AgentOrchestrator;
+import ai.cognitive.agents.AgentResponse;
+import ai.cognitive.agents.CognitiveIntent;
+import ai.cognitive.cognition.DecisionEngine;
+import ai.cognitive.cognition.DecisionEngineResult;
 import ai.cognitive.cognition.CognitionDecision;
-import ai.cognitive.cognition.CognitionService;
 import ai.cognitive.memory.CuratedMemoryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,14 +32,21 @@ class ObservationControllerTest {
     @MockBean
     CuratedMemoryService curatedMemoryService;
 
-    @MockBean
-    CognitionService cognitionService;
+        @MockBean
+        DecisionEngine decisionEngine;
+
+        @MockBean
+        AgentOrchestrator agentOrchestrator;
 
     @Test
     void returns204WhenDecisionIsSilence() throws Exception {
         doNothing().when(curatedMemoryService).observe(any());
-        when(cognitionService.evaluate(any())).thenReturn(
-                new CognitionDecision(CognitionDecision.DecisionType.SILENCE, 0.6, List.of("Defaulting")));
+        when(decisionEngine.evaluate(any())).thenReturn(
+                new DecisionEngineResult(
+                        new CognitionDecision(CognitionDecision.DecisionType.SILENCE, 0.6, List.of("Defaulting")),
+                        CognitiveIntent.GENERAL_RESPONSE,
+                        List.of("routed")
+                ));
 
         mvc.perform(post("/api/observe")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -50,8 +61,15 @@ class ObservationControllerTest {
     @Test
     void returns200WithReasonsWhenDecisionIsSpeak() throws Exception {
         doNothing().when(curatedMemoryService).observe(any());
-        when(cognitionService.evaluate(any())).thenReturn(
-                new CognitionDecision(CognitionDecision.DecisionType.SPEAK, 0.9, List.of("Direct question detected")));
+        when(decisionEngine.evaluate(any())).thenReturn(
+                new DecisionEngineResult(
+                        new CognitionDecision(CognitionDecision.DecisionType.SPEAK, 0.9, List.of("Direct question detected")),
+                        CognitiveIntent.REFLECTION,
+                        List.of("routed")
+                ));
+
+        when(agentOrchestrator.handle(any(), any())).thenReturn(
+                new AgentResponse("ReflectionAgent", "I think you asked a question.", List.of("routed to reflection")));
 
         mvc.perform(post("/api/observe")
                 .contentType(MediaType.APPLICATION_JSON)

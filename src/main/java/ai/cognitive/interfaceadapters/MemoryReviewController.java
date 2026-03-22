@@ -2,6 +2,7 @@ package ai.cognitive.interfaceadapters;
 
 import ai.cognitive.memory.CuratedMemoryService;
 import ai.cognitive.memory.MemoryCandidate;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -29,13 +30,13 @@ public class MemoryReviewController {
     }
 
     @PostMapping("/candidates/{id}/accept")
-    public ResponseEntity<?> accept(@PathVariable UUID id, @RequestBody ReviewRequest request) {
+    public ResponseEntity<?> accept(@PathVariable UUID id, @Valid @RequestBody ReviewRequest request) {
         curatedMemoryService.acceptCandidate(id, request.note());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/candidates/{id}/reject")
-    public ResponseEntity<?> reject(@PathVariable UUID id, @RequestBody ReviewRequest request) {
+    public ResponseEntity<?> reject(@PathVariable UUID id, @Valid @RequestBody ReviewRequest request) {
         curatedMemoryService.rejectCandidate(id, request.note());
         return ResponseEntity.noContent().build();
     }

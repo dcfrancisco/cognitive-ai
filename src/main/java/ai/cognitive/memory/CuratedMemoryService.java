@@ -1,6 +1,7 @@
 package ai.cognitive.memory;
 
 import ai.cognitive.perception.Observation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CuratedMemoryService {
     private final WorkingMemory workingMemory;
     private final MemoryCandidateRepository candidateRepository;
+    private final double similarityThreshold;
     private final EpisodicMemoryRepository episodicMemoryRepository;
 
     // Minimal recurrence heuristic: count normalized snippets over a short window.
@@ -25,10 +27,12 @@ public class CuratedMemoryService {
     private final int recurrenceWindow = 50;
 
     public CuratedMemoryService(MemoryCandidateRepository candidateRepository,
-            EpisodicMemoryRepository episodicMemoryRepository) {
+            EpisodicMemoryRepository episodicMemoryRepository,
+            @Value("${memory.duplicate.similarity.threshold:0.45}") double similarityThreshold) {
         this.workingMemory = new WorkingMemory(25);
         this.candidateRepository = candidateRepository;
         this.episodicMemoryRepository = episodicMemoryRepository;
+        this.similarityThreshold = similarityThreshold;
     }
 
     public void observe(Observation observation) {
@@ -67,8 +71,20 @@ public class CuratedMemoryService {
 
         String summary = summarizeMeaning(content);
         String rationale = explicitlyRemember
-                ? "User explicitly requested remembering"
-                : "Observed recurrence (>=3) in recent window";
+            ? "User explicitly requested remembering"
+            : "Observed recurrence (>=3) in recent window";
+
+        // Prevent duplicate pending candidates using exact match first, then
+        // a trigram-based fuzzy similarity check when available.
+        if (candidateRepository.pendingExistsBySummary(summary)) {
+            return;
+        }
+
+        // Fuzzy duplicate prevention: if the database has a pg_trgm-based index
+        // and the similarity threshold is configured, avoid inserting near-duplicates.
+        if (similarityThreshold > 0 && candidateRepository.pendingSimilarExists(summary, similarityThreshold)) {
+            return;
+        }
 
         candidateRepository.insertPending(UUID.randomUUID(), observation.source(), summary, rationale, tags);
     }
@@ -115,13 +131,16 @@ public class CuratedMemoryService {
     }
 
     public void acceptCandidate(UUID id, String reviewerNote) {
-        // Minimal: mark accepted and immediately materialize into episodic memory using
-        // the candidate row.
-        // To keep the flow auditable, we re-read the pending list and match by id.
-        var pending = candidateRepository.findPending(200);
-        MemoryCandidate found = pending.stream().filter(c -> c.id().equals(id)).findFirst().orElse(null);
-        candidateRepository.mark(id, MemoryCandidate.Status.ACCEPTED, reviewerNote);
-        if (found != null) {
+        // Read the candidate by id; only mark and materialize if the candidate exists and is pending.
+        MemoryCandidate found = candidateRepository.findById(id);
+        if (found == null) {
+            // nothing to accept
+            return;
+        }
+
+        // Only accept if it's currently pending to avoid accidental re-accepts.
+        if (found.status() == MemoryCandidate.Status.PENDING) {
+            candidateRepository.mark(id, MemoryCandidate.Status.ACCEPTED, reviewerNote);
             episodicMemoryRepository.insert(UUID.randomUUID(), found.summary(), found.rationale(), found.tags());
         }
     }
