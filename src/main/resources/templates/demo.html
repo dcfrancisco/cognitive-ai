@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cognitive AI Demo</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 24px;
+        background: #f7f7f9;
+      }
+      h1 {
+        margin-bottom: 4px;
+      }
+      .subtitle {
+        margin-bottom: 24px;
+        color: #555;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .card {
+        background: white;
+        padding: 16px;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+      textarea,
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        margin-top: 6px;
+        margin-bottom: 12px;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      .full {
+        grid-column: 1 / -1;
+      }
+      .label {
+        font-weight: bold;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #f1f1f1;
+        padding: 10px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Cognitive AI Demo Console</h1>
+    <div class="subtitle">Observe → Decide → Route → Act → Remember</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Observation Input</h2>
+        <label class="label">Source</label>
+        <input id="source" type="text" value="user" />
+
+        <label class="label">Content</label>
+        <textarea
+          id="content"
+          rows="6"
+          placeholder="Type an observation..."
+        ></textarea>
+
+        <label>
+          <input id="explicitRemember" type="checkbox" />
+          Explicit remember
+        </label>
+
+        <div style="margin-top: 12px">
+          <button onclick="submitObservation()">Observe</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Decision Output</h2>
+        <div>
+          <span class="label">Decision:</span> <span id="decision">-</span>
+        </div>
+        <div>
+          <span class="label">Confidence:</span> <span id="confidence">-</span>
+        </div>
+        <div><span class="label">Intent:</span> <span id="intent">-</span></div>
+        <div><span class="label">Agent:</span> <span id="agent">-</span></div>
+        <div><span class="label">Message:</span></div>
+        <pre id="message">-</pre>
+      </div>
+
+      <div class="card">
+        <h2>Explainability</h2>
+        <ul id="reasons"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Working Memory</h2>
+        <ul id="workingMemory"></ul>
+      </div>
+
+      <div class="card full">
+        <h2>Pending Memory Candidates</h2>
+        <ul id="candidates"></ul>
+      </div>
+    </div>
+
+    <script>
+      async function submitObservation() {
+        const payload = {
+          source: document.getElementById("source").value,
+          content: document.getElementById("content").value,
+          explicitRemember: document.getElementById("explicitRemember").checked,
+        };
+
+        const response = await fetch("/api/observe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.status === 204) {
+          document.getElementById("decision").textContent = "SILENCE";
+          document.getElementById("confidence").textContent = "-";
+          document.getElementById("intent").textContent = "-";
+          document.getElementById("agent").textContent = "-";
+          document.getElementById("message").textContent =
+            "System chose silence.";
+          document.getElementById("reasons").innerHTML =
+            "<li>No response generated.</li>";
+          await refreshMemory();
+          return;
+        }
+
+        const data = await response.json();
+
+        document.getElementById("decision").textContent = data.decision ?? "-";
+        document.getElementById("confidence").textContent =
+          data.confidence ?? "-";
+        document.getElementById("intent").textContent = data.intent ?? "-";
+        document.getElementById("agent").textContent = data.agent ?? "-";
+        document.getElementById("message").textContent = data.message ?? "-";
+
+        const reasons = document.getElementById("reasons");
+        reasons.innerHTML = "";
+        (data.reasons || []).forEach((reason) => {
+          const li = document.createElement("li");
+          li.textContent = reason;
+          reasons.appendChild(li);
+        });
+
+        await refreshMemory();
+      }
+
+      async function refreshMemory() {
+        try {
+          const wmResponse = await fetch("/api/demo/working-memory");
+          const workingMemory = await wmResponse.json();
+
+          const wmList = document.getElementById("workingMemory");
+          wmList.innerHTML = "";
+          workingMemory.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item.content ?? JSON.stringify(item);
+            wmList.appendChild(li);
+          });
+        } catch (e) {
+          console.error("Failed to load working memory", e);
+        }
+
+        try {
+          const candidatesResponse = await fetch("/api/memory/candidates");
+          const candidates = await candidatesResponse.json();
+
+          const candidateList = document.getElementById("candidates");
+          candidateList.innerHTML = "";
+          candidates.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent =
+              item.summary || item.content || JSON.stringify(item);
+            candidateList.appendChild(li);
+          });
+        } catch (e) {
+          console.error("Failed to load candidates", e);
+        }
+      }
+
+      refreshMemory();
+    </script>
+  </body>
+</html>
