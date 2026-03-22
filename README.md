@@ -47,9 +47,15 @@ What is planned next:
 
 ## Architecture
 
-Perception → Should-Speak Policy → Intent Router → Agent Orchestrator → Agent Response → Curated Memory
+Implemented request flow:
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for a visual diagram.
+Observation intake (`POST /api/observe`) → `CuratedMemoryService` (working memory + candidate curation) → `DecisionEngine` (`ShouldSpeakPolicy` + `IntentRouter`) → `AgentOrchestrator` → selected agent response
+
+Long-term memory is review-first: observations may become pending `memory_candidate` records, and only accepted candidates are materialized into `episodic_memory`.
+
+Current behavior is intentionally rule-based and explainable. Live recall is grounded in recent working memory today; episodic retrieval and model-assisted cognition remain extension points.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full component diagram and runtime details.
 
 ## Agent layer (current)
 
@@ -166,7 +172,6 @@ Applying V3 on managed Postgres — step-by-step
   - Tune `memory.duplicate.similarity.threshold` via `application.yml` or environment variable `MEMORY_DUPLICATE_SIMILARITY_THRESHOLD` and restart the app.
 
 If you'd like, I can add a short troubleshooting section for common provider errors (RDS/GCP/Azure/Heroku) or create a small Testcontainers-based integration test to validate fuzzy detection locally.
-```
 
 
 ### Environment variables
@@ -219,6 +224,26 @@ curl -X POST http://localhost:8080/api/observe \
 
 ```bash
 curl http://localhost:8080/api/memory/candidates
+```
+
+### Accept a memory candidate
+
+```bash
+curl -X POST http://localhost:8080/api/memory/candidates/<candidate-id>/accept \
+  -H "Content-Type: application/json" \
+  -d '{
+    "note": "Looks useful for long-term memory"
+  }'
+```
+
+### Reject a memory candidate
+
+```bash
+curl -X POST http://localhost:8080/api/memory/candidates/<candidate-id>/reject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "note": "Too transient to keep"
+  }'
 ```
 
 ## Why this repo is called Cognitive AI
