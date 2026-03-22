@@ -6,7 +6,7 @@ This document describes the architecture implemented in the current codebase. It
 - Purpose: an ambient cognitive companion that accepts observations, decides whether to respond, routes the interaction to a cognitive agent, and curates long-term memory through human review.
 - Style: modular monolith built with Spring Boot, Spring MVC, Spring JDBC, Flyway, and PostgreSQL.
 - Current runtime character: rule-based cognition and routing, in-process working memory, database-backed candidate review and episodic memory.
-- Extension points: agent implementations, should-speak policy, intent routing heuristics, and optional future model-assisted summarization or retrieval.
+- Extension points: agent implementations, should-speak policy, intent routing heuristics, and optional model-assisted summarization or retrieval.
 
 ## Implemented package map
 - `ph.francisco.interfaceadapters` — HTTP controllers and demo page.
@@ -152,7 +152,7 @@ flowchart TD
   - `DATABASE_USER`
   - `DATABASE_PASSWORD`
 - Flyway is enabled by default.
-- Spring AI OpenAI support is present in dependencies and conditionally configured, but it is not part of the current request-processing architecture described above.
+- Spring AI OpenAI support is present and conditionally configured. When enabled, `ReflectionAgent` and `MemoryRecallAgent` use Spring AI for responses, and `CuratedMemoryService` can use Spring AI for candidate summarization, all with rule-based fallbacks.
 
 ## Testing coverage relevant to the architecture
 - `ObservationControllerTest` verifies the `204` silence path and `200` speak path.
@@ -161,6 +161,6 @@ flowchart TD
 
 ## Known gaps and intentional extension points
 - No live retrieval from `episodic_memory` is wired into agent responses yet.
-- No model-assisted summarization or retrieval is in the main request path yet; current summarization is conservative and rule-based.
+- Model-assisted summarization and reflection are optional and fall back to conservative rule-based behavior when Spring AI is not configured.
 - Working memory is process-local and resets on restart.
 - The architecture is prepared for richer provider-backed cognition later, but the current design should be read as a review-first, rule-based cognitive loop.

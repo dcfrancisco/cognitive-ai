@@ -1,6 +1,7 @@
 package ph.francisco.memory;
 
 import ph.francisco.perception.Observation;
+import ph.francisco.agents.SpringAiResponseService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,18 +20,21 @@ public class CuratedMemoryService {
     private final MemoryCandidateRepository candidateRepository;
     private final double similarityThreshold;
     private final EpisodicMemoryRepository episodicMemoryRepository;
+    private final SpringAiResponseService springAiResponseService;
 
     // Minimal recurrence heuristic: count normalized snippets over a short window.
     private final Map<String, Integer> recurrenceCounts = new ConcurrentHashMap<>();
     private final Deque<String> recentKeys = new ArrayDeque<>();
-    private final int recurrenceWindow = 50;
+    private static final int RECURRENCE_WINDOW = 50;
 
     public CuratedMemoryService(MemoryCandidateRepository candidateRepository,
             EpisodicMemoryRepository episodicMemoryRepository,
+            SpringAiResponseService springAiResponseService,
             @Value("${memory.duplicate.similarity.threshold:0.45}") double similarityThreshold) {
         this.workingMemory = new WorkingMemory(25);
         this.candidateRepository = candidateRepository;
         this.episodicMemoryRepository = episodicMemoryRepository;
+        this.springAiResponseService = springAiResponseService;
         this.similarityThreshold = similarityThreshold;
     }
 
@@ -70,8 +74,8 @@ public class CuratedMemoryService {
 
         String summary = summarizeMeaning(content);
         String rationale = explicitlyRemember
-            ? "User explicitly requested remembering"
-            : "Observed recurrence (>=3) in recent window";
+                ? "User explicitly requested remembering"
+                : "Observed recurrence (>=3) in recent window";
 
         // Prevent duplicate pending candidates using exact match first, then
         // a trigram-based fuzzy similarity check when available.
@@ -89,9 +93,9 @@ public class CuratedMemoryService {
     }
 
     private int bumpRecurrence(String key) {
-        recurrenceCounts.merge(key, 1, Integer::sum);
+        recurrenceCounts.merge(key, 1, (current, delta) -> current + delta);
         recentKeys.addLast(key);
-        if (recentKeys.size() > recurrenceWindow) {
+        if (recentKeys.size() > RECURRENCE_WINDOW) {
             String evicted = recentKeys.removeFirst();
             recurrenceCounts.computeIfPresent(evicted, (k, v) -> v <= 1 ? null : (v - 1));
         }
@@ -114,10 +118,14 @@ public class CuratedMemoryService {
         return c + "#" + Integer.toHexString(h);
     }
 
-    private static String summarizeMeaning(String content) {
+    private String summarizeMeaning(String content) {
         // Intentionally conservative: do not keep raw transcript; keep a short
-        // meaning-preserving paraphrase.
-        // Rule-based placeholder; can be swapped to LLM-assisted summarization later.
+        // meaning-preserving paraphrase. Use Spring AI when available.
+        return springAiResponseService.summarizeMemoryCandidate(content)
+                .orElseGet(() -> ruleBasedSummary(content));
+    }
+
+    private static String ruleBasedSummary(String content) {
         String c = content.replaceAll("\\s+", " ").trim();
         if (c.length() <= 160) {
             return c;
@@ -130,7 +138,8 @@ public class CuratedMemoryService {
     }
 
     public void acceptCandidate(UUID id, String reviewerNote) {
-        // Read the candidate by id; only mark and materialize if the candidate exists and is pending.
+        // Read the candidate by id; only mark and materialize if the candidate exists
+        // and is pending.
         MemoryCandidate found = candidateRepository.findById(id);
         if (found == null) {
             // nothing to accept

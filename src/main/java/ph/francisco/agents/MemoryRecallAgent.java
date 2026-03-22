@@ -10,10 +10,15 @@ import java.util.stream.Collectors;
 @Component
 public class MemoryRecallAgent implements CognitiveAgent {
 
-    private final CuratedMemoryService curatedMemoryService;
+    private static final String AGENT_NAME = "MemoryRecallAgent";
 
-    public MemoryRecallAgent(CuratedMemoryService curatedMemoryService) {
+    private final CuratedMemoryService curatedMemoryService;
+    private final SpringAiResponseService springAiResponseService;
+
+    public MemoryRecallAgent(CuratedMemoryService curatedMemoryService,
+            SpringAiResponseService springAiResponseService) {
         this.curatedMemoryService = curatedMemoryService;
+        this.springAiResponseService = springAiResponseService;
     }
 
     @Override
@@ -27,10 +32,20 @@ public class MemoryRecallAgent implements CognitiveAgent {
 
         if (working.isEmpty()) {
             return new AgentResponse(
-                    "MemoryRecallAgent",
+                    AGENT_NAME,
                     "I don’t have enough recent working memory to answer that yet.",
-                    List.of("Working memory snapshot was empty")
-            );
+                    List.of("Working memory snapshot was empty"));
+        }
+
+        var aiResponse = springAiResponseService.generateRecallResponse(observation, working);
+        if (aiResponse.isPresent()) {
+            return new AgentResponse(
+                    AGENT_NAME,
+                    aiResponse.get(),
+                    List.of(
+                            "User asked for recall",
+                            "Spring AI produced a response",
+                            "Response was grounded in recent working memory"));
         }
 
         String recent = working.stream()
@@ -39,12 +54,10 @@ public class MemoryRecallAgent implements CognitiveAgent {
                 .collect(Collectors.joining("\n"));
 
         return new AgentResponse(
-                "MemoryRecallAgent",
+                AGENT_NAME,
                 "From recent working memory, here’s what seems relevant:\n" + recent,
                 List.of(
                         "User asked for recall",
-                        "Response was grounded in recent working memory"
-                )
-        );
+                        "Response was grounded in recent working memory"));
     }
 }
