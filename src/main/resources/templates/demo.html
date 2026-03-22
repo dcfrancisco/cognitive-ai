@@ -185,12 +185,199 @@
           candidateList.innerHTML = "";
           candidates.forEach((item) => {
             const li = document.createElement("li");
-            li.textContent =
+            const id =
+              item.id || item.idStr || item.uuid || item.idString || "";
+            const summary =
               item.summary || item.content || JSON.stringify(item);
+
+            // header: summary + badge + timestamp
+            const header = document.createElement("div");
+            header.style.display = "flex";
+            header.style.alignItems = "center";
+            header.style.gap = "8px";
+
+            const span = document.createElement("span");
+            span.textContent = summary;
+            header.appendChild(span);
+
+            // status badge if present
+            if (item.status) {
+              const badge = document.createElement("span");
+              badge.textContent = item.status;
+              badge.style.background = "#eef";
+              badge.style.border = "1px solid #cce";
+              badge.style.padding = "2px 8px";
+              badge.style.borderRadius = "999px";
+              badge.style.fontSize = "12px";
+              header.appendChild(badge);
+            }
+
+            // timestamp
+            const created =
+              item.createdAt || item.created_at || item.created || null;
+            if (created) {
+              const ts = document.createElement("small");
+              try {
+                const d = new Date(created);
+                ts.textContent = d.toLocaleString();
+              } catch (e) {
+                ts.textContent = String(created);
+              }
+              ts.style.marginLeft = "auto";
+              ts.style.color = "#666";
+              header.appendChild(ts);
+            }
+
+            li.appendChild(header);
+
+            const controls = document.createElement("div");
+            controls.style.marginTop = "6px";
+            controls.style.display = "flex";
+            controls.style.alignItems = "center";
+            controls.style.gap = "8px";
+
+            const noteInput = document.createElement("input");
+            noteInput.type = "text";
+            noteInput.placeholder = "Reviewer note (optional)";
+            noteInput.style.flex = "1";
+
+            const acceptBtn = document.createElement("button");
+            acceptBtn.textContent = "Accept";
+            acceptBtn.disabled = !id;
+            acceptBtn.onclick = () =>
+              openReviewModal(id, true, noteInput.value);
+
+            const rejectBtn = document.createElement("button");
+            rejectBtn.textContent = "Reject";
+            rejectBtn.disabled = !id;
+            rejectBtn.onclick = () =>
+              openReviewModal(id, false, noteInput.value);
+
+            controls.appendChild(noteInput);
+            controls.appendChild(acceptBtn);
+            controls.appendChild(rejectBtn);
+
+            if (!id) {
+              const hint = document.createElement("small");
+              hint.style.color = "#a33";
+              hint.textContent = "ID missing — cannot accept/reject from demo";
+              controls.appendChild(hint);
+            }
+
+            li.appendChild(controls);
             candidateList.appendChild(li);
           });
         } catch (e) {
           console.error("Failed to load candidates", e);
+        }
+      }
+
+      // Modal dialog for accept/reject
+      function createModalIfNeeded() {
+        if (document.getElementById("reviewModal")) return;
+        const modal = document.createElement("div");
+        modal.id = "reviewModal";
+        modal.style.position = "fixed";
+        modal.style.left = "0";
+        modal.style.top = "0";
+        modal.style.right = "0";
+        modal.style.bottom = "0";
+        modal.style.background = "rgba(0,0,0,0.35)";
+        modal.style.display = "flex";
+        modal.style.alignItems = "center";
+        modal.style.justifyContent = "center";
+
+        const box = document.createElement("div");
+        box.style.background = "white";
+        box.style.padding = "16px";
+        box.style.borderRadius = "8px";
+        box.style.width = "480px";
+        box.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+
+        const title = document.createElement("h3");
+        title.id = "reviewModalTitle";
+        title.textContent = "Review candidate";
+        box.appendChild(title);
+
+        const summary = document.createElement("div");
+        summary.id = "reviewModalSummary";
+        summary.style.marginBottom = "8px";
+        box.appendChild(summary);
+
+        const noteLabel = document.createElement("div");
+        noteLabel.textContent = "Reviewer note";
+        box.appendChild(noteLabel);
+
+        const noteField = document.createElement("input");
+        noteField.id = "reviewModalNote";
+        noteField.type = "text";
+        noteField.style.width = "100%";
+        noteField.style.marginBottom = "12px";
+        box.appendChild(noteField);
+
+        const actions = document.createElement("div");
+        actions.style.display = "flex";
+        actions.style.justifyContent = "flex-end";
+        actions.style.gap = "8px";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.onclick = () => {
+          modal.style.display = "none";
+        };
+
+        const confirmBtn = document.createElement("button");
+        confirmBtn.id = "reviewModalConfirm";
+        confirmBtn.textContent = "Confirm";
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        box.appendChild(actions);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+      }
+
+      function openReviewModal(id, accept, note) {
+        createModalIfNeeded();
+        const modal = document.getElementById("reviewModal");
+        document.getElementById("reviewModalSummary").textContent =
+          note && note.length ? note : `Candidate id: ${id}`;
+        const noteField = document.getElementById("reviewModalNote");
+        noteField.value = note || "";
+        const confirmBtn = document.getElementById("reviewModalConfirm");
+        confirmBtn.onclick = async () => {
+          modal.style.display = "none";
+          await acceptRejectCandidate(id, accept, noteField.value);
+        };
+        modal.style.display = "flex";
+      }
+
+      async function acceptRejectCandidate(id, accept, note) {
+        if (!id) {
+          // graceful handling: show inline non-blocking message
+          console.warn(
+            "Candidate id missing; cannot accept/reject from demo UI",
+          );
+          return;
+        }
+        const url = `/api/memory/candidates/${id}/${accept ? "accept" : "reject"}`;
+        const payload = {
+          note: note || (accept ? "Accepted via demo" : "Rejected via demo"),
+        };
+        try {
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            await refreshMemory();
+          } else {
+            const text = await resp.text();
+            console.error("Failed to accept/reject:", resp.status, text);
+          }
+        } catch (err) {
+          console.error("Error accepting/rejecting candidate:", err);
         }
       }
 

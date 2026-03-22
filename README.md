@@ -90,6 +90,8 @@ Run DB migrations
 
 ```bash
 mvn -Dflyway.url=${DATABASE_URL} -Dflyway.user=${DATABASE_USER} -Dflyway.password=${DATABASE_PASSWORD} flyway:migrate
+```
+
 Additional migration notes
 -------------------------
 
