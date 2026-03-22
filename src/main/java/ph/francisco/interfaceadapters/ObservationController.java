@@ -1,0 +1,60 @@
+package ph.francisco.interfaceadapters;
+
+import ph.francisco.agents.AgentOrchestrator;
+import ph.francisco.agents.AgentResponse;
+import ph.francisco.cognition.CognitionDecision;
+import ph.francisco.cognition.DecisionEngine;
+import ph.francisco.cognition.DecisionEngineResult;
+import ph.francisco.memory.CuratedMemoryService;
+import ph.francisco.perception.Observation;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api")
+public class ObservationController {
+    private final CuratedMemoryService curatedMemoryService;
+    private final DecisionEngine decisionEngine;
+    private final AgentOrchestrator agentOrchestrator;
+
+    public ObservationController(
+            CuratedMemoryService curatedMemoryService,
+            DecisionEngine decisionEngine,
+            AgentOrchestrator agentOrchestrator) {
+        this.curatedMemoryService = curatedMemoryService;
+        this.decisionEngine = decisionEngine;
+        this.agentOrchestrator = agentOrchestrator;
+    }
+
+    @PostMapping("/observe")
+    public ResponseEntity<?> observe(@Valid @RequestBody Observation observation) {
+        curatedMemoryService.observe(observation);
+
+        DecisionEngineResult result = decisionEngine.evaluate(observation);
+        CognitionDecision decision = result.cognitionDecision();
+
+        if (decision.type() == CognitionDecision.DecisionType.SILENCE) {
+            return ResponseEntity.noContent().build();
+        }
+
+        AgentResponse agentResponse = agentOrchestrator.handle(result.intent(), observation);
+
+        var reasons = new ArrayList<String>();
+        reasons.addAll(decision.reasons());
+        reasons.addAll(result.routingReasons());
+        reasons.addAll(agentResponse.reasons());
+
+        return ResponseEntity.ok(Map.of(
+                "decision", decision.type().name(),
+                "confidence", decision.confidence(),
+                "intent", result.intent().name(),
+                "agent", agentResponse.agent(),
+                "message", agentResponse.message(),
+                "reasons", reasons
+        ));
+    }
+}
