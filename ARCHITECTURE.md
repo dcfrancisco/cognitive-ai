@@ -20,7 +20,7 @@ flowchart TD
   DE --> SBP[ShouldSpeakPolicy]
   DE --> IR[IntentRouter]
   IR --> AO[AgentOrchestrator]
-  AO --> AGT[Agent (MemoryCapture / Recall / Reflection)]
+  AO --> AGT["Agent (MemoryCapture / Recall / Reflection)"]
   DE --> CMS[CuratedMemoryService]
   CMS --> MCR[MemoryCandidateRepository]
   MCR --> DB[(Postgres / Episodic Store)]
@@ -28,7 +28,7 @@ flowchart TD
   MC --> CMS
 
   %% fuzzy detection note
-  MCR ---|uses pg_trgm similarity| TRG[Trigram index (pg_trgm)]
+  MCR ---|uses pg_trgm similarity| TRG["Trigram index (pg_trgm)"]
   TRG --> DB
 
   style DB fill:#f9f,stroke:#333,stroke-width:1px
