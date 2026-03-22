@@ -70,7 +70,7 @@ flowchart TD
   subgraph DB[PostgreSQL]
     MC[(memory_candidate)]
     EM[(episodic_memory)]
-    TRG[pg_trgm index on lower(summary)]
+    TRG[pg_trgm index on lower summary]
     VEC[pgvector embedding column]
   end
 
