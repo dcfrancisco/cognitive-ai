@@ -31,13 +31,13 @@ public class MemoryReviewController {
     }
 
     @PostMapping("/candidates/{id}/accept")
-    public ResponseEntity<?> accept(@PathVariable UUID id, @Valid @RequestBody ReviewRequest request) {
+    public ResponseEntity<?> accept(@PathVariable(name = "id") UUID id, @Valid @RequestBody ReviewRequest request) {
         curatedMemoryService.acceptCandidate(id, request.note());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/candidates/{id}/reject")
-    public ResponseEntity<?> reject(@PathVariable UUID id, @Valid @RequestBody ReviewRequest request) {
+    public ResponseEntity<?> reject(@PathVariable(name = "id") UUID id, @Valid @RequestBody ReviewRequest request) {
         curatedMemoryService.rejectCandidate(id, request.note());
         return ResponseEntity.noContent().build();
     }
