@@ -21,9 +21,24 @@ public class SpringAiResponseService {
         this.chatClientBuilderProvider = chatClientBuilderProvider;
     }
 
-    public Optional<String> generateReflection(Observation observation) {
+    public Optional<String> generateReflection(Observation observation, List<WorkingMemory.Item> items) {
         String content = safeContent(observation);
-        return callModel(buildReflectionSystemPrompt(), content);
+        if ((items == null || items.isEmpty()) && !org.springframework.util.StringUtils.hasText(content)) {
+            return Optional.empty();
+        }
+
+        StringBuilder userPrompt = new StringBuilder();
+        userPrompt.append("User request:\n");
+        userPrompt.append(content).append("\n\n");
+        if (items != null && !items.isEmpty()) {
+            userPrompt.append("Recent working memory:\n");
+            items.stream()
+                    .skip(Math.max(0, items.size() - 5))
+                    .forEach(item -> userPrompt.append("- [").append(item.source()).append("] ").append(item.content())
+                            .append("\n"));
+        }
+
+        return callModel(buildReflectionSystemPrompt(), userPrompt.toString());
     }
 
     public Optional<String> generateRecallResponse(Observation observation, List<WorkingMemory.Item> items) {

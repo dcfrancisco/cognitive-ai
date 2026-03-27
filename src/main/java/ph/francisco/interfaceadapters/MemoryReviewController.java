@@ -22,7 +22,8 @@ public class MemoryReviewController {
     }
 
     @GetMapping("/candidates")
-    public List<MemoryCandidate> pending(@RequestParam(defaultValue = "25") @Min(1) @Max(200) int limit) {
+    public List<MemoryCandidate> pending(
+            @RequestParam(name = "limit", defaultValue = "25") @Min(1) @Max(200) int limit) {
         return curatedMemoryService.pendingCandidates(limit);
     }
 

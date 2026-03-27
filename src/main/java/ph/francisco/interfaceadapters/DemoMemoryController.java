@@ -14,7 +14,11 @@ public class DemoMemoryController {
     }
 
     @GetMapping("/api/demo/working-memory")
-    public Object workingMemory() {
-        return curatedMemoryService.workingSnapshot();
+    public Object workingMemory(
+            @org.springframework.web.bind.annotation.RequestParam(name = "sessionId", required = false) String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return curatedMemoryService.workingSnapshot();
+        }
+        return curatedMemoryService.workingSnapshot(sessionId);
     }
 }

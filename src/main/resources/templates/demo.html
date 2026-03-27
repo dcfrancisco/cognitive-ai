@@ -108,6 +108,11 @@
         <ul id="workingMemory"></ul>
       </div>
 
+      <div class="card">
+        <h2>Conversation (session)</h2>
+        <ul id="conversation"></ul>
+      </div>
+
       <div class="card full">
         <h2>Pending Memory Candidates</h2>
         <ul id="candidates"></ul>
@@ -120,6 +125,7 @@
           source: document.getElementById("source").value,
           content: document.getElementById("content").value,
           explicitRemember: document.getElementById("explicitRemember").checked,
+          sessionId: localStorage.getItem("cognitive_session_id") || null,
         };
 
         const response = await fetch("/api/observe", {
@@ -158,20 +164,41 @@
           reasons.appendChild(li);
         });
 
+        // Persist sessionId for multi-turn demo interactions
+        if (data.sessionId) {
+          localStorage.setItem("cognitive_session_id", data.sessionId);
+        }
+
         await refreshMemory();
       }
 
       async function refreshMemory() {
         try {
-          const wmResponse = await fetch("/api/demo/working-memory");
+          const sessionId = localStorage.getItem("cognitive_session_id");
+          const wmUrl = sessionId ? `/api/demo/working-memory?sessionId=${encodeURIComponent(sessionId)}` : "/api/demo/working-memory";
+          const wmResponse = await fetch(wmUrl);
           const workingMemory = await wmResponse.json();
 
           const wmList = document.getElementById("workingMemory");
           wmList.innerHTML = "";
           workingMemory.forEach((item) => {
             const li = document.createElement("li");
-            li.textContent = item.content ?? JSON.stringify(item);
+            li.textContent = `[${item.source}] ${item.content}` ?? JSON.stringify(item);
             wmList.appendChild(li);
+          });
+
+          // Build conversation view (interleaved user/agent by timestamp)
+          const conv = document.getElementById("conversation");
+          conv.innerHTML = "";
+          workingMemory.forEach((item) => {
+            const li = document.createElement("li");
+            li.style.marginBottom = "6px";
+            if ((item.source || '').toLowerCase() === 'user') {
+              li.innerHTML = `<strong>User:</strong> ${item.content}`;
+            } else {
+              li.innerHTML = `<strong>${item.source}:</strong> ${item.content}`;
+            }
+            conv.appendChild(li);
           });
         } catch (e) {
           console.error("Failed to load working memory", e);

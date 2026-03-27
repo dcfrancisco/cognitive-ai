@@ -28,7 +28,7 @@ public class MemoryRecallAgent implements CognitiveAgent {
 
     @Override
     public AgentResponse handle(Observation observation) {
-        var working = curatedMemoryService.workingSnapshot();
+        var working = curatedMemoryService.workingSnapshot(observation.sessionId());
 
         if (working.isEmpty()) {
             return new AgentResponse(

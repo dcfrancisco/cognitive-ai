@@ -7,6 +7,7 @@ import ph.francisco.cognition.DecisionEngine;
 import ph.francisco.cognition.DecisionEngineResult;
 import ph.francisco.memory.CuratedMemoryService;
 import ph.francisco.perception.Observation;
+import java.util.UUID;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +33,14 @@ public class ObservationController {
 
     @PostMapping("/observe")
     public ResponseEntity<?> observe(@Valid @RequestBody Observation observation) {
+        // Ensure a sessionId exists for multi-turn/demo scenarios
+        String sessionId = observation.sessionId();
+        if (sessionId == null || sessionId.isBlank()) {
+            sessionId = UUID.randomUUID().toString();
+            observation = new Observation(observation.source(), observation.content(), observation.explicitRemember(),
+                    sessionId);
+        }
+
         curatedMemoryService.observe(observation);
 
         DecisionEngineResult result = decisionEngine.evaluate(observation);
@@ -48,13 +57,15 @@ public class ObservationController {
         reasons.addAll(result.routingReasons());
         reasons.addAll(agentResponse.reasons());
 
-        return ResponseEntity.ok(Map.of(
+        var resp = Map.of(
                 "decision", decision.type().name(),
                 "confidence", decision.confidence(),
                 "intent", result.intent().name(),
                 "agent", agentResponse.agent(),
                 "message", agentResponse.message(),
-                "reasons", reasons
-        ));
+                "reasons", reasons,
+                "sessionId", sessionId);
+
+        return ResponseEntity.ok(resp);
     }
 }

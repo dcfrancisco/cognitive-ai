@@ -1,6 +1,7 @@
 package ph.francisco.agents;
 
 import ph.francisco.perception.Observation;
+import ph.francisco.memory.CuratedMemoryService;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -9,9 +10,11 @@ import java.util.ArrayList;
 public class ReflectionAgent implements CognitiveAgent {
 
     private final SpringAiResponseService springAiResponseService;
+    private final CuratedMemoryService curatedMemoryService;
 
-    public ReflectionAgent(SpringAiResponseService springAiResponseService) {
+    public ReflectionAgent(SpringAiResponseService springAiResponseService, CuratedMemoryService curatedMemoryService) {
         this.springAiResponseService = springAiResponseService;
+        this.curatedMemoryService = curatedMemoryService;
     }
 
     @Override
@@ -27,7 +30,8 @@ public class ReflectionAgent implements CognitiveAgent {
         var reasons = new ArrayList<String>();
         reasons.add("Observation was routed to reflective/general response");
 
-        var aiResponse = springAiResponseService.generateReflection(observation);
+        var working = curatedMemoryService.workingSnapshot(observation.sessionId());
+        var aiResponse = springAiResponseService.generateReflection(observation, working);
         if (aiResponse.isPresent()) {
             reasons.add("Spring AI produced a response");
             reasons.add("System chose a restrained partner-style reply");

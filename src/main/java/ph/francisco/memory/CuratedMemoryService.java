@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class CuratedMemoryService {
-    private final WorkingMemory workingMemory;
+    private final Map<String, WorkingMemory> sessionMemory = new ConcurrentHashMap<>();
     private final MemoryCandidateRepository candidateRepository;
     private final double similarityThreshold;
     private final EpisodicMemoryRepository episodicMemoryRepository;
@@ -31,7 +31,9 @@ public class CuratedMemoryService {
             EpisodicMemoryRepository episodicMemoryRepository,
             SpringAiResponseService springAiResponseService,
             @Value("${memory.duplicate.similarity.threshold:0.45}") double similarityThreshold) {
-        this.workingMemory = new WorkingMemory(25);
+        // per-session working memory instances
+        // default capacity 25 items per session
+        // sessionMemory is populated on demand
         this.candidateRepository = candidateRepository;
         this.episodicMemoryRepository = episodicMemoryRepository;
         this.springAiResponseService = springAiResponseService;
@@ -39,12 +41,28 @@ public class CuratedMemoryService {
     }
 
     public void observe(Observation observation) {
-        workingMemory.add(observation);
+        String sessionId = observation.sessionId() == null ? "global" : observation.sessionId();
+        getOrCreateWorkingMemory(sessionId).add(observation);
         considerCandidate(observation);
     }
 
     public List<WorkingMemory.Item> workingSnapshot() {
-        return workingMemory.snapshot();
+        // return a merged snapshot across sessions (for legacy/demo fallback)
+        return sessionMemory.values().stream()
+                .flatMap(wm -> wm.snapshot().stream())
+                .toList();
+    }
+
+    public List<WorkingMemory.Item> workingSnapshot(String sessionId) {
+        if (sessionId == null) {
+            return workingSnapshot();
+        }
+        WorkingMemory wm = sessionMemory.get(sessionId);
+        return wm == null ? List.of() : wm.snapshot();
+    }
+
+    private WorkingMemory getOrCreateWorkingMemory(String sessionId) {
+        return sessionMemory.computeIfAbsent(sessionId, id -> new WorkingMemory(25));
     }
 
     private void considerCandidate(Observation observation) {
