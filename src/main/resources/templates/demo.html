@@ -175,7 +175,9 @@
       async function refreshMemory() {
         try {
           const sessionId = localStorage.getItem("cognitive_session_id");
-          const wmUrl = sessionId ? `/api/demo/working-memory?sessionId=${encodeURIComponent(sessionId)}` : "/api/demo/working-memory";
+          const wmUrl = sessionId
+            ? `/api/demo/working-memory?sessionId=${encodeURIComponent(sessionId)}`
+            : "/api/demo/working-memory";
           const wmResponse = await fetch(wmUrl);
           const workingMemory = await wmResponse.json();
 
@@ -183,23 +185,32 @@
           wmList.innerHTML = "";
           workingMemory.forEach((item) => {
             const li = document.createElement("li");
-            li.textContent = `[${item.source}] ${item.content}` ?? JSON.stringify(item);
+            li.textContent =
+              `[${item.source}] ${item.content}` ?? JSON.stringify(item);
             wmList.appendChild(li);
           });
 
-          // Build conversation view (interleaved user/agent by timestamp)
-          const conv = document.getElementById("conversation");
-          conv.innerHTML = "";
-          workingMemory.forEach((item) => {
-            const li = document.createElement("li");
-            li.style.marginBottom = "6px";
-            if ((item.source || '').toLowerCase() === 'user') {
-              li.innerHTML = `<strong>User:</strong> ${item.content}`;
-            } else {
-              li.innerHTML = `<strong>${item.source}:</strong> ${item.content}`;
-            }
-            conv.appendChild(li);
-          });
+          // Build conversation view from persisted conversation entries
+          try {
+            const convResp = await fetch("/api/demo/conversation");
+            const convEntries = await convResp.json();
+            const conv = document.getElementById("conversation");
+            conv.innerHTML = "";
+            convEntries.forEach((entry) => {
+              const li = document.createElement("li");
+              li.style.marginBottom = "6px";
+              const ts =
+                entry.timestamp ||
+                entry.timestampStr ||
+                entry.timestampISO ||
+                null;
+              const time = ts ? new Date(ts).toLocaleString() : "";
+              li.innerHTML = `<div style="font-size:12px;color:#666">${time}</div><div><strong>User:</strong> ${entry.input}</div><div><strong>Avery:</strong> ${entry.response}</div>`;
+              conv.appendChild(li);
+            });
+          } catch (e) {
+            console.error("Failed to load conversation entries", e);
+          }
         } catch (e) {
           console.error("Failed to load working memory", e);
         }

@@ -43,6 +43,13 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 ### Conversation / Interactive MVP
 
 - **Text conversational MVP (priority):** wire the decision + routing pipeline to a response generator so the system can produce multi-turn replies. Tasks: session/turn state, simple dialog manager, intent-to-agent response mapping, response content generation (rule-based or LLM stub), demo UI wiring. Estimate: 2–4 weeks (text-only, provider & infra dependent).
+  
+  Status: interactive console implemented (CognitiveLoopRunner). A temporary `ForcedShouldSpeakPolicy` forces responses so you can exercise the full loop immediately. Conversation turns are persisted to episodic memory via `CuratedMemoryService.storeInteraction()` for recall testing.
+
+  Next tasks:
+  - Replace forced policy with the intelligent `ShouldSpeakPolicy` by re-enabling `RuleBasedShouldSpeakPolicy` or improving the decision heuristics.
+  - Add an LLM-stub → LLM integration switch for reflection and richer responses.
+  - Provide a lightweight web demo/UI that wires `/api/observe` to a console-like front-end.
 - **Voice prototype (STT → Cognition → TTS):** add an STT adapter and a minimal TTS output path and wire into the demo flow. Estimate: +2–3 weeks after text MVP.
 - **Conversational quality & safety:** add turn-level context windowing, transient conversational memory, safety/policy checks, and request auditing. Estimate: ongoing; aim for basic safety checks before public demos.
 

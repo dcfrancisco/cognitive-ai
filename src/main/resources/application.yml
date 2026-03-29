@@ -23,3 +23,11 @@ management:
     web:
       exposure:
         include: health,info
+
+# Debugging helpers: set TRACE logging for Spring AI HTTP payloads when troubleshooting
+# Remove or set to DEBUG after capturing logs.
+logging:
+  level:
+    org.springframework.ai: TRACE
+    org.springframework.ai.chat.client: TRACE
+    org.springframework.web.client: TRACE

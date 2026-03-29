@@ -6,6 +6,7 @@ import ph.francisco.cognition.CognitionDecision;
 import ph.francisco.cognition.DecisionEngine;
 import ph.francisco.cognition.DecisionEngineResult;
 import ph.francisco.memory.CuratedMemoryService;
+import ph.francisco.memory.ConversationMemoryService;
 import ph.francisco.perception.Observation;
 import java.util.UUID;
 import jakarta.validation.Valid;
@@ -19,14 +20,17 @@ import java.util.Map;
 @RequestMapping("/api")
 public class ObservationController {
     private final CuratedMemoryService curatedMemoryService;
+    private final ConversationMemoryService conversationMemoryService;
     private final DecisionEngine decisionEngine;
     private final AgentOrchestrator agentOrchestrator;
 
     public ObservationController(
             CuratedMemoryService curatedMemoryService,
+            ConversationMemoryService conversationMemoryService,
             DecisionEngine decisionEngine,
             AgentOrchestrator agentOrchestrator) {
         this.curatedMemoryService = curatedMemoryService;
+        this.conversationMemoryService = conversationMemoryService;
         this.decisionEngine = decisionEngine;
         this.agentOrchestrator = agentOrchestrator;
     }
@@ -51,6 +55,14 @@ public class ObservationController {
         }
 
         AgentResponse agentResponse = agentOrchestrator.handle(result.intent(), observation);
+
+        // persist conversational turn for demo/inspection
+        try {
+            conversationMemoryService.store(observation, agentResponse);
+        } catch (Exception e) {
+            // do not fail the REST call if memory persistence has an issue
+            System.err.println("Failed to store conversation turn: " + e.getMessage());
+        }
 
         var reasons = new ArrayList<String>();
         reasons.addAll(decision.reasons());

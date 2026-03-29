@@ -3,7 +3,15 @@ package ph.francisco.agents;
 import ph.francisco.perception.Observation;
 import ph.francisco.values.ValuesAndBoundaries;
 import ph.francisco.memory.WorkingMemory;
+import ph.francisco.cognition.PersonaService;
 import org.springframework.ai.chat.client.ChatClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -16,9 +24,12 @@ import java.util.stream.Collectors;
 public class SpringAiResponseService {
 
     private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
+    private final PersonaService personaService;
 
-    public SpringAiResponseService(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider) {
+    public SpringAiResponseService(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
+            PersonaService personaService) {
         this.chatClientBuilderProvider = chatClientBuilderProvider;
+        this.personaService = personaService;
     }
 
     public Optional<String> generateReflection(Observation observation, List<WorkingMemory.Item> items) {
@@ -90,13 +101,15 @@ public class SpringAiResponseService {
 
         ChatClient.Builder builder = chatClientBuilderProvider.getIfAvailable();
         if (builder == null) {
-            return Optional.empty();
+            // Fall back to direct OpenAI call if Spring ChatClient is not available
+            return callOpenAiDirect(systemPrompt, userPrompt);
         }
 
         try {
             ChatClient client = builder.build();
+            String combinedSystem = combinePersonaAndSystem(systemPrompt);
             String response = client.prompt()
-                    .system(systemPrompt)
+                    .system(combinedSystem)
                     .user(userPrompt)
                     .call()
                     .content();
@@ -107,8 +120,101 @@ public class SpringAiResponseService {
 
             return Optional.of(response.trim());
         } catch (RuntimeException ex) {
+            // Try a direct OpenAI HTTP call as a fallback to work around provider
+            // compatibility issues
+            return callOpenAiDirect(systemPrompt, userPrompt);
+        }
+    }
+
+    private Optional<String> callOpenAiDirect(String systemPrompt, String userPrompt) {
+        try {
+            String apiKey = System.getenv("SPRING_AI_OPENAI_API_KEY");
+            if (!StringUtils.hasText(apiKey)) {
+                apiKey = System.getenv("OPENAI_API_KEY");
+            }
+            if (!StringUtils.hasText(apiKey)) {
+                return Optional.empty();
+            }
+
+            String model = System.getenv("SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL");
+            if (!StringUtils.hasText(model)) {
+                model = System.getenv("AI_MODEL");
+            }
+            if (!StringUtils.hasText(model)) {
+                model = "gpt-4o-mini";
+            }
+
+            String prompt = combinePersonaAndSystem(systemPrompt) + "\n\n" + userPrompt;
+
+            RestTemplate rt = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey.trim());
+
+            ObjectMapper mapper = new ObjectMapper();
+            // Minimal request body for Responses API
+            JsonNode body = mapper.createObjectNode()
+                    .put("model", model)
+                    .put("input", prompt);
+
+            HttpEntity<String> req = new HttpEntity<>(mapper.writeValueAsString(body), headers);
+
+            ResponseEntity<String> resp = rt.postForEntity("https://api.openai.com/v1/responses", req, String.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
+                return Optional.empty();
+            }
+
+            JsonNode root = mapper.readTree(resp.getBody());
+            // Try common response shapes
+            // 1) output[0].content[0].text
+            if (root.has("output") && root.get("output").isArray() && root.get("output").size() > 0) {
+                JsonNode out0 = root.get("output").get(0);
+                if (out0.has("content") && out0.get("content").isArray() && out0.get("content").size() > 0) {
+                    for (JsonNode c : out0.get("content")) {
+                        if (c.has("text")) {
+                            String text = c.get("text").asText();
+                            if (StringUtils.hasText(text))
+                                return Optional.of(text.trim());
+                        }
+                        if (c.isTextual()) {
+                            String text = c.asText();
+                            if (StringUtils.hasText(text))
+                                return Optional.of(text.trim());
+                        }
+                    }
+                }
+            }
+
+            // 2) choices[0].message.content (chat/completions shape)
+            if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
+                JsonNode choice = root.get("choices").get(0);
+                if (choice.has("message") && choice.get("message").has("content")) {
+                    String text = choice.get("message").get("content").asText();
+                    if (StringUtils.hasText(text))
+                        return Optional.of(text.trim());
+                }
+                if (choice.has("text")) {
+                    String text = choice.get("text").asText();
+                    if (StringUtils.hasText(text))
+                        return Optional.of(text.trim());
+                }
+            }
+
+            return Optional.empty();
+        } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    private String combinePersonaAndSystem(String systemPrompt) {
+        String persona = personaService == null ? "" : personaService.getSystemPrompt();
+        if (!StringUtils.hasText(persona)) {
+            return systemPrompt == null ? "" : systemPrompt;
+        }
+        if (!StringUtils.hasText(systemPrompt)) {
+            return persona;
+        }
+        return persona + "\n\n" + systemPrompt;
     }
 
     private String buildReflectionSystemPrompt() {

@@ -193,6 +193,30 @@ export DATABASE_PASSWORD=postgres
 mvn spring-boot:run
 ```
 
+### Interactive console (new)
+
+An interactive console loop is now available on application startup. The `CognitiveLoopRunner` component starts when the app launches and provides a simple prompt-based loop for manual testing and demos.
+
+Usage:
+
+```bash
+# from the project root
+mvn -DskipTests spring-boot:run
+
+# or run the packaged JAR
+java -jar target/cognitive-ai-0.0.1-SNAPSHOT.jar
+```
+
+Then type at the prompt and press Enter. Example session:
+
+User: hello
+Avery: Hello. How can I help you?
+
+Notes:
+- The interactive loop currently uses a temporary forced policy (`ForcedShouldSpeakPolicy`) that makes the system respond to every input. TODO: re-enable intelligent filtering later.
+- Each conversation turn is stored into the core episodic memory via `CuratedMemoryService` (input + response) so you can test recall and the memory pipeline end-to-end.
+- To stop the interactive loop for production testing, run the app with a different configuration or remove/disable the forced policy bean.
+
 ## Example API
 
 ### Observe

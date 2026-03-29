@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import ph.francisco.agents.AgentResponse;
 
 @Service
 public class CuratedMemoryService {
@@ -38,6 +39,21 @@ public class CuratedMemoryService {
         this.episodicMemoryRepository = episodicMemoryRepository;
         this.springAiResponseService = springAiResponseService;
         this.similarityThreshold = similarityThreshold;
+    }
+
+    public void storeInteraction(ph.francisco.perception.Observation observation, AgentResponse response) {
+        String content = observation == null ? "" : observation.content();
+        String resp = response == null ? "" : response.message();
+
+        String combined = (content + " \nResponse: " + resp).trim();
+        if (combined.isBlank())
+            return;
+
+        String summary = summarizeMeaning(combined);
+        String rationale = "Conversation turn stored (input+response)";
+        var tags = List.of("interaction", "agent:" + (response == null ? "unknown" : response.agent()));
+
+        episodicMemoryRepository.insert(UUID.randomUUID(), summary, rationale, tags);
     }
 
     public void observe(Observation observation) {
