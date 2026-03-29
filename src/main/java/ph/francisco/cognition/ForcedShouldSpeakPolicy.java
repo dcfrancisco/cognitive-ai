@@ -7,9 +7,10 @@ import java.util.ArrayList;
 /**
  * Temporary policy that forces the system to speak for all observations.
  *
- * This class is intentionally NOT registered as a Spring bean by default so
- * the `RuleBasedShouldSpeakPolicy` is used in normal operation. Re-enable
- * only for short-term manual testing.
+ * NOTE: This implementation is intentionally NOT registered as a Spring bean
+ * by default to avoid overriding the normal `RuleBasedShouldSpeakPolicy`.
+ * Use it only for short-term manual testing by registering it as a bean.
+ * TODO: re-enable intelligent filtering if this file is registered again.
  */
 public class ForcedShouldSpeakPolicy implements ShouldSpeakPolicy {
 
