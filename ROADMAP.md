@@ -40,6 +40,19 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - Add stub/mock `AudioSensor` and `VisionSensor`.
 - Extend demo console to simulate audio/vision observations.
 
+### Conversation / Interactive MVP
+
+- **Text conversational MVP (priority):** wire the decision + routing pipeline to a response generator so the system can produce multi-turn replies. Tasks: session/turn state, simple dialog manager, intent-to-agent response mapping, response content generation (rule-based or LLM stub), demo UI wiring. Estimate: 2–4 weeks (text-only, provider & infra dependent).
+- **Voice prototype (STT → Cognition → TTS):** add an STT adapter and a minimal TTS output path and wire into the demo flow. Estimate: +2–3 weeks after text MVP.
+- **Conversational quality & safety:** add turn-level context windowing, transient conversational memory, safety/policy checks, and request auditing. Estimate: ongoing; aim for basic safety checks before public demos.
+
+## Conversation timeline (rough)
+
+- Text-only interactive MVP (demo wired to `/api/observe` + response generator): **2–4 weeks**.
+- Voice-first prototype (adds STT/TTS): **additional 2–3 weeks**.
+- Production-grade multi-turn (RAG, longer context, safety, observability): **2–3 months**.
+
+
 ## Medium-term (3–6 months)
 - Improve memory-review rules; add LLM-assisted review workflow.
 - Add **LLM integration layer** for:
