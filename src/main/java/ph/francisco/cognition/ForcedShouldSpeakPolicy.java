@@ -1,16 +1,21 @@
 package ph.francisco.cognition;
 
 import ph.francisco.perception.Observation;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 
 /**
  * Temporary policy that forces the system to speak for all observations.
  *
- * This class is intentionally NOT registered as a Spring bean by default so
- * the `RuleBasedShouldSpeakPolicy` is used in normal operation. Re-enable
- * only for short-term manual testing.
+ * NOTE: This is intentionally registered as the primary Spring bean while
+ * working interactively. TODO: re-enable intelligent filtering and remove
+ * 
+ * @Primary before committing to long-running environments.
  */
+@Component
+@Primary
 public class ForcedShouldSpeakPolicy implements ShouldSpeakPolicy {
 
     @Override
