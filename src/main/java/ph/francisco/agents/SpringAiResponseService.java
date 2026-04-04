@@ -4,7 +4,6 @@ import ph.francisco.perception.Observation;
 import ph.francisco.values.ValuesAndBoundaries;
 import ph.francisco.memory.WorkingMemory;
 import ph.francisco.cognition.PersonaService;
-import org.springframework.ai.chat.client.ChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpEntity;
@@ -12,7 +11,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -23,12 +21,9 @@ import java.util.stream.Collectors;
 @Component
 public class SpringAiResponseService {
 
-    private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
     private final PersonaService personaService;
 
-    public SpringAiResponseService(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
-            PersonaService personaService) {
-        this.chatClientBuilderProvider = chatClientBuilderProvider;
+    public SpringAiResponseService(PersonaService personaService) {
         this.personaService = personaService;
     }
 
@@ -99,31 +94,11 @@ public class SpringAiResponseService {
             return Optional.empty();
         }
 
-        ChatClient.Builder builder = chatClientBuilderProvider.getIfAvailable();
-        if (builder == null) {
-            // Fall back to direct OpenAI call if Spring ChatClient is not available
-            return callOpenAiDirect(systemPrompt, userPrompt);
-        }
-
-        try {
-            ChatClient client = builder.build();
-            String combinedSystem = combinePersonaAndSystem(systemPrompt);
-            String response = client.prompt()
-                    .system(combinedSystem)
-                    .user(userPrompt)
-                    .call()
-                    .content();
-
-            if (!StringUtils.hasText(response)) {
-                return Optional.empty();
-            }
-
-            return Optional.of(response.trim());
-        } catch (RuntimeException ex) {
-            // Try a direct OpenAI HTTP call as a fallback to work around provider
-            // compatibility issues
-            return callOpenAiDirect(systemPrompt, userPrompt);
-        }
+        // NOTE: Spring AI 1.1.2 serializes extraBody={} into every ChatCompletionRequest,
+        // which causes HTTP 400 "Unrecognized request argument supplied: extra_body" from
+        // the OpenAI Chat Completions API. Until this is fixed upstream, bypass the
+        // ChatClient and use the direct Responses API call which does not have this issue.
+        return callOpenAiDirect(systemPrompt, userPrompt);
     }
 
     private Optional<String> callOpenAiDirect(String systemPrompt, String userPrompt) {

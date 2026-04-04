@@ -147,4 +147,45 @@ HTTP 204 No Content (candidate rejected).
 
 ---
 
-You can use Postman or curl for all these actions. For more, see the README or ask for custom scenarios.
+### 7. Transcribe audio (voice mode)
+**Request:**
+POST `/api/voice/transcribe` (multipart)
+```
+audio: <recording.webm>
+```
+**Expected:**
+```json
+{ "text": "I need to wake up early tomorrow" }
+```
+Returns 503 if no `OPENAI_API_KEY` is set (fall back to browser SpeechRecognition in the demo UI).
+
+---
+
+### 8. Text to speech
+**Request:**
+POST `/api/voice/speak`
+```json
+{ "text": "Hello. How can I help you?" }
+```
+**Expected:**
+`audio/mpeg` binary (MP3). Returns 503 if not configured.
+
+---
+
+### 9. Ambient room observation
+Ambient mode in the demo UI submits observations automatically:
+
+POST `/api/observe`
+```json
+{
+  "source": "room",
+  "content": "I think we should schedule the meeting for Thursday",
+  "explicitRemember": false
+}
+```
+**Expected:**
+Normal cognitive response (SPEAK or SILENCE depending on content intent).
+
+---
+
+You can use Postman or curl for all these actions. For more, see [SAMPLES.md](SAMPLES.md) or ask for custom scenarios.
