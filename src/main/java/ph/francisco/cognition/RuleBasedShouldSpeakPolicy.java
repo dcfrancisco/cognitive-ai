@@ -34,6 +34,12 @@ public class RuleBasedShouldSpeakPolicy implements ShouldSpeakPolicy {
             return new CognitionDecision(CognitionDecision.DecisionType.SPEAK, 0.65, reasons);
         }
 
+        // Greeting or farewell invites a brief reply (e.g., "good night", "bye").
+        if (lower.matches(".*\\b(good\\s*night|goodnight|good\\s*morning|goodbye|bye|see you|night|nites|nite)\\b.*")) {
+            reasons.add("Greeting/farewell detected");
+            return new CognitionDecision(CognitionDecision.DecisionType.SPEAK, 0.6, reasons);
+        }
+
         reasons.add("Defaulting to silence (no clear invitation to intervene)");
         return new CognitionDecision(CognitionDecision.DecisionType.SILENCE, 0.6, reasons);
     }

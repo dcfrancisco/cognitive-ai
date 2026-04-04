@@ -17,7 +17,7 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - **v0.2:** episodic store persistence (Postgres + pgvector), Flyway migrations, memory candidate pipeline, review endpoints.
 - **v0.3a: Multimodal perception foundation:** text, audio, and vision sensor interfaces, perception normalization layer, audio (STT) prototype integration, basic vision caption/detection integration, unified Observation pipeline.
 - **v0.3:** simple UI / demo page for observing the cognitive loop in action.
-- **v0.5:** semantic memory (RAG), Spring AI integration, basic TTS/STT adapter demo, optional LLM-assisted reflection.
+- **v0.5:** semantic memory (RAG), Spring AI integration, basic TTS/STT adapter demo, optional LLM-assisted reflection. ✅ **Voice conversation** added to demo UI (OpenAI Whisper STT + TTS; Web Speech API fallback). `GET /api/ai/status` returns `voiceEnabled` flag. `POST /api/voice/transcribe` and `POST /api/voice/speak` endpoints live. ✅ **Ambient room listening** — always-on VAD in demo UI captures speech from anyone in the room and feeds it into the cognitive pipeline as `source: "room"` observations.
 - **v0.7:** richer orchestration, improved recall, LLM-assisted memory review, stronger observability.
 - **v1.0:** hardened release — CI/CD, integration tests, deployable container, docs, examples, and public-project polish.
 
@@ -26,20 +26,14 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - Implement and harden `CognitionService.shouldSpeak()` contract: decision, confidence, why.
 - Wire a simple RAG proof-of-concept using Spring AI client.
 - Add CI with `mvn -DskipTests=false test` and basic linting.
-- Add a **simple UI / demo page** to show:
-  - observation input
-  - decision result
-  - routed intent
-  - selected agent
-  - explainability reasons
-  - recent working memory / candidates
-- Add a minimal architecture diagram to the repo.
+- ~~Add a **simple UI / demo page**~~ ✅ Done — demo UI live at `/demo`.
+- ~~Add a minimal architecture diagram~~ ✅ Done — see `diagrams/`.
 - Add `.env.example`, sample `curl` commands, and expected responses.
-- Introduce Perception Layer abstraction (Text, Audio, Vision).
-- Implement Perception Normalizer to unify inputs into Observation.
-- Add stub/mock `AudioSensor` and `VisionSensor`.
-- Extend demo console to simulate audio/vision observations.
-
+- ~~Introduce Perception Layer abstraction (Text, Audio, Vision)~~ ✅ Done.
+- ~~Implement Perception Normalizer~~ ✅ Done.
+- ~~Add stub/mock `AudioSensor` and `VisionSensor`~~ ✅ Done.
+- ~~Extend demo console to simulate audio/vision observations~~ ✅ Done — mic button + TTS playback in demo UI.
+  - ~~Add ambient room listening~~ ✅ Done — always-on VAD captures room audio; observations tagged `source: "room"` enter the cognitive loop.
 ### Conversation / Interactive MVP
 
 - **Text conversational MVP (priority):** wire the decision + routing pipeline to a response generator so the system can produce multi-turn replies. Tasks: session/turn state, simple dialog manager, intent-to-agent response mapping, response content generation (rule-based or LLM stub), demo UI wiring. Estimate: 2–4 weeks (text-only, provider & infra dependent).
@@ -50,13 +44,15 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
   - Replace forced policy with the intelligent `ShouldSpeakPolicy` by re-enabling `RuleBasedShouldSpeakPolicy` or improving the decision heuristics.
   - Add an LLM-stub → LLM integration switch for reflection and richer responses.
   - Provide a lightweight web demo/UI that wires `/api/observe` to a console-like front-end.
-- **Voice prototype (STT → Cognition → TTS):** add an STT adapter and a minimal TTS output path and wire into the demo flow. Estimate: +2–3 weeks after text MVP.
+- **Voice prototype (STT → Cognition → TTS):** ✅ Done. `VoiceService` (Whisper transcription + OpenAI TTS), `VoiceController` (`/api/voice/transcribe`, `/api/voice/speak`), voice mode toggle + mic button in demo UI. Web Speech API fallback when no OpenAI key is set.
+- **Ambient room listening:** ✅ Done. Always-on VAD in demo UI. AudioContext + AnalyserNode RMS detection → MediaRecorder → Whisper transcribe → `/api/observe` (source: "room"). Browser SpeechRecognition continuous fallback. Red privacy banner while active.
 - **Conversational quality & safety:** add turn-level context windowing, transient conversational memory, safety/policy checks, and request auditing. Estimate: ongoing; aim for basic safety checks before public demos.
 
 ## Conversation timeline (rough)
 
-- Text-only interactive MVP (demo wired to `/api/observe` + response generator): **2–4 weeks**.
-- Voice-first prototype (adds STT/TTS): **additional 2–3 weeks**.
+- ~~Text-only interactive MVP (demo wired to `/api/observe` + response generator)~~ ✅ Done.
+- ~~Voice-first prototype (adds STT/TTS)~~ ✅ Done — demo UI with mic + speaker; OpenAI or browser fallback.
+- ~~Ambient room listening~~ ✅ Done — always-on VAD; room observations tagged `source: "room"`.
 - Production-grade multi-turn (RAG, longer context, safety, observability): **2–3 months**.
 
 

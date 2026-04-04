@@ -78,3 +78,59 @@ curl -X POST http://localhost:8080/api/memory/candidates/<CANDIDATE_UUID>/reject
   -H "Content-Type: application/json" \
   -d '{ "note": "Not relevant" }'
 ```
+
+## Transcribe audio (Whisper)
+
+```bash
+curl -X POST http://localhost:8080/api/voice/transcribe \
+  -F "audio=@recording.webm"
+```
+
+Expected response:
+
+```json
+{ "text": "I need to wake up early tomorrow" }
+```
+
+Returns 503 when no `OPENAI_API_KEY` is set.
+
+## Text to speech
+
+```bash
+curl -X POST http://localhost:8080/api/voice/speak \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello, how can I help?"}' \
+  --output response.mp3
+```
+
+Returns `audio/mpeg` bytes. Returns 503 when not configured.
+
+## AI health check
+
+```bash
+curl http://localhost:8080/api/ai/status
+```
+
+Expected response:
+
+```json
+{
+  "available": true,
+  "clientPresent": true,
+  "apiKeySet": true,
+  "voiceEnabled": true,
+  "model": "gpt-4o-mini"
+}
+```
+
+## Ambient room observation (submitted automatically by demo UI)
+
+```bash
+curl -X POST http://localhost:8080/api/observe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "room",
+    "content": "We should reschedule Thursday meeting to Friday",
+    "explicitRemember": false
+  }'
+```

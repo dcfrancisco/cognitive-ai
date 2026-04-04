@@ -22,6 +22,7 @@ Observation -> ShouldSpeakPolicy -> IntentRouter -> AgentOrchestrator -> Agent -
   - `MemoryRecallAgent` — answers recall requests by grounding replies in `CuratedMemoryService` working memory.
   - `MemoryCaptureAgent` — acknowledges memory-capture intents.
 - `agents/SpringAiResponseService` — LLM integration. Uses Spring AI `ChatClient` when available or falls back to a direct OpenAI HTTP call (Responses API). Produces reflection/recall/summarization outputs.
+- `agents/VoiceService` — Voice I/O service. `transcribe(MultipartFile)` → `Optional<String>` via OpenAI Whisper. `speak(String)` → `Optional<byte[]>` MP3 via OpenAI TTS. Returns `Optional.empty()` gracefully when no API key is configured.
 - `memory/CuratedMemoryService` — Working memory, candidate extraction, and persistence into episodic stores. Provides `workingSnapshot(sessionId)` used by agents.
 - `memory/ConversationMemoryService` — In-memory recent conversation entries for quick retrieval + forwards entries to `CuratedMemoryService` for persistence.
 
@@ -47,7 +48,44 @@ docker compose up -d app --build
 
 ## Health & status
 
-- AI health endpoint: `GET /api/ai/status` (controller logs whether ChatClient is available and whether an API key is set).
+- AI health endpoint: `GET /api/ai/status` — returns `available`, `clientPresent`, `apiKeySet`, `voiceEnabled`, and `model`.
+
+## Voice conversation
+
+A voice mode is available in the demo UI at `/demo`.
+
+**Backend:**
+- `POST /api/voice/transcribe` — multipart `audio` file → `{"text": "..."}`. Uses OpenAI Whisper. Returns 503 if not configured.
+- `POST /api/voice/speak` — `{"text": "..."}` → `audio/mpeg` bytes. Uses OpenAI TTS (Nova voice). Returns 503 if not configured.
+
+**Frontend (demo UI):**
+- "🎙 Voice mode" toggle reveals a mic button.
+- Click 🎤 to start recording (MediaRecorder / audio/webm). Click 🔴 to stop and transcribe.
+- Transcribed text auto-fills the textarea and submits to `/api/observe`.
+- Avery's response is read aloud via `/api/voice/speak`.
+- **Fallback:** if `voiceEnabled` is false, the UI falls back to the browser's `SpeechRecognition` (STT) and `speechSynthesis` (TTS) APIs, which work in Chrome/Edge without any API key.
+
+**Requirements for full voice:**
+```
+SPRING_AI_OPENAI_API_KEY=sk-...   # enables both Whisper + TTS
+```
+Without the key, browser-native voice still works in Chrome/Edge.
+
+## Ambient room listening
+
+Always-on passive VAD mode is available in the demo UI.
+
+**How it works:**
+- `AudioContext` + `AnalyserNode` computes RMS volume continuously.
+- A state machine (`silence` → `speaking` → `silence`) starts recording when RMS exceeds `VAD_THRESHOLD = 0.018`.
+- `MediaRecorder` captures the segment; recording stops after 900 ms of silence or 25 s max.
+- The audio blob is sent to `POST /api/voice/transcribe` (Whisper), then the transcript is submitted to `POST /api/observe` with `source: "room"`.
+- Browser `SpeechRecognition` (continuous mode) is used as fallback when Whisper is unavailable.
+- A fixed red privacy banner is displayed while ambient mode is active.
+- Responses from agents are optionally spoken aloud (TTS or `speechSynthesis`).
+- All ambient observations enter the same cognitive loop (ShouldSpeakPolicy → IntentRouter → AgentOrchestrator → memory).
+
+**Key classes:** all in `demo.html` frontend JS (no backend-specific ambient component — uses existing `/api/voice/transcribe` and `/api/observe`).
 
 ## Forced speak policy (testing)
 
@@ -61,7 +99,10 @@ docker compose up -d app --build
 - Run integration with a valid OpenAI key and test `ReflectionAgent` and `MemoryRecallAgent` behaviours.
 - Add a small acceptance test for console loop using `System.in` injection or a harness.
 - Replace `ForcedShouldSpeakPolicy` with a toggleable profile or property to avoid code edits for enabling the forced policy.
+- Replace placeholder stub agents with richer LLM-driven responses.
+- Enable `RuleBasedShouldSpeakPolicy` heuristics for more natural silence decisions.
+- Add RAG / vector memory for semantic recall.
 
 ---
 
-File created by Copilot-assisted audit on branch `feature/force-speak-policy`.
+Last updated: April 2026 (voice conversation feature added).

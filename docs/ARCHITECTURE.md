@@ -9,12 +9,13 @@ This document describes the architecture implemented in the current codebase. It
 - Extension points: agent implementations, should-speak policy, intent routing heuristics, and optional model-assisted summarization or retrieval.
 
 ## Implemented package map
-- `ph.francisco.interfaceadapters` — HTTP controllers and demo page.
+- `ph.francisco.interfaceadapters` — HTTP controllers and demo page (including `VoiceController`).
 - `ph.francisco.perception` — inbound observation shape.
 - `ph.francisco.cognition` — should-speak policy and decision engine.
-- `ph.francisco.agents` — intent routing, orchestrator, and agent implementations.
+- `ph.francisco.agents` — intent routing, orchestrator, agent implementations, and `VoiceService`.
 - `ph.francisco.memory` — working memory, curation logic, candidate persistence, episodic persistence.
 - `ph.francisco.config` — Spring Boot configuration support, including conditional environment setup for provider configuration.
+- `ph.francisco.runner` — `CognitiveLoopRunner` (interactive console on startup).
 - `ph.francisco.values` — shared value objects.
 
 ## Multimodal perception layer
@@ -73,6 +74,8 @@ flowchart TD
     MRC[MemoryReviewController\nreview endpoints]
     DMC[DemoMemoryController\nGET /api/demo/working-memory]
     DPC[DemoPageController\nGET /demo]
+    VC[VoiceController\nPOST /api/voice/transcribe\nPOST /api/voice/speak]
+    AHC[AiHealthController\nGET /api/ai/status]
   end
 
   subgraph COG[Cognition layer]
@@ -86,6 +89,8 @@ flowchart TD
     MCA[MemoryCaptureAgent]
     MRA[MemoryRecallAgent]
     RA[ReflectionAgent]
+    VS[VoiceService\nWhisper STT + OpenAI TTS]
+    SARS[SpringAiResponseService]
   end
 
   subgraph MEMORY[Memory layer]
@@ -110,6 +115,9 @@ flowchart TD
   AO --> MCA
   AO --> MRA
   AO --> RA
+  RA --> SARS
+  MRA --> SARS
+  VC --> VS
 
   CMS --> WM
   CMS --> MCR
@@ -196,6 +204,9 @@ flowchart TD
 - `POST /api/memory/candidates/{id}/reject` — reject a candidate with reviewer note.
 - `GET /api/demo/working-memory` — inspect the in-memory working snapshot for demos.
 - `GET /demo` — render the demo page.
+- `POST /api/voice/transcribe` — multipart `audio` file → `{"text": "..."}` via OpenAI Whisper. Returns 503 if not configured.
+- `POST /api/voice/speak` — `{"text": "..."}` → `audio/mpeg` bytes via OpenAI TTS. Returns 503 if not configured.
+- `GET /api/ai/status` — AI health: `available`, `clientPresent`, `apiKeySet`, `voiceEnabled`, `model`.
 
 ## Configuration and deployment
 - Application entry point: `ph.francisco.CognitiveAiApplication`.
@@ -211,6 +222,23 @@ flowchart TD
 - `ObservationControllerTest` verifies the `204` silence path and `200` speak path.
 - `IntentRouterTest` verifies routing to memory capture, memory recall, and reflection.
 - `RuleBasedShouldSpeakPolicyTest` verifies silence-by-default plus explicit-remember and question-triggered speech.
+
+## Voice and ambient perception
+
+### Voice conversation
+- `VoiceService` (in `ph.francisco.agents`) wraps `OpenAiAudioTranscriptionModel` (Whisper) and `OpenAiAudioSpeechModel` (TTS) via `ObjectProvider` for graceful degradation.
+- `VoiceController` exposes `/api/voice/transcribe` and `/api/voice/speak`.
+- The demo UI sends recorded audio to `/api/voice/transcribe` and plays the TTS response from `/api/voice/speak`.
+- Falls back to browser `SpeechRecognition` / `speechSynthesis` when no API key is set.
+
+### Ambient room listening
+- Implemented entirely in the demo UI frontend (no dedicated backend component).
+- `AudioContext` + `AnalyserNode` continuously computes RMS volume.
+- A state machine (`silence` → `speaking` → `silence`) triggers `MediaRecorder` capture when RMS > `VAD_THRESHOLD`.
+- Segments are transcribed via `/api/voice/transcribe` and submitted to `/api/observe` with `source: "room"`.
+- Every room observation enters the same cognitive loop: `ShouldSpeakPolicy` → `IntentRouter` → `AgentOrchestrator` → memory.
+- A fixed red privacy banner is shown while ambient mode is active.
+- Browser `SpeechRecognition` in continuous mode is used as fallback.
 
 ## Known gaps and intentional extension points
 - No live retrieval from `episodic_memory` is wired into agent responses yet.

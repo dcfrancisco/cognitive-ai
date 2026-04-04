@@ -25,7 +25,9 @@ public class IntentRouter {
         if (lower.contains("what do you remember")
                 || lower.contains("what do i prefer")
                 || lower.contains("remind me")
-                || lower.contains("what did i say")) {
+                || lower.contains("what did i say")
+                || lower.contains("what do you know")
+                || lower.contains("what do you know from")) {
             return CognitiveIntent.MEMORY_RECALL;
         }
 

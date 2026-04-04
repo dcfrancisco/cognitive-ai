@@ -11,173 +11,73 @@ This project is not designed as a conventional chatbot. It explores how AI can b
 
 ## Current status
 
-Early-stage but runnable foundation.
+Early-stage but runnable foundation. Interactive and voice-capable.
 
-What works now:
-- Observation intake via REST API
+**What works now:**
+
+- Observation intake via REST API and demo UI
 - Working memory capture
 - Curated memory candidate pipeline
 - Rule-based should-speak decision
-- Intent routing
-- Agent orchestration
-- Explainable JSON response showing:
-  - decision
-  - confidence
-  - intent
-  - selected agent
-  - reasons
-
-What is planned next:
-- episodic recall beyond working memory
-- semantic memory with embeddings
-- LLM-assisted summarization and reflection
-- voice-first loop (STT → cognition → TTS)
+- Intent routing and agent orchestration
+- Explainable JSON response (decision, confidence, intent, agent, reasons)
+- Interactive console loop (`CognitiveLoopRunner`)
+- Voice conversation in demo UI — OpenAI Whisper STT + TTS; Web Speech API fallback
+- Ambient room listening — always-on VAD that feeds observations from anyone in the room into the cognitive pipeline
+- AI health endpoint (`GET /api/ai/status`) with `voiceEnabled` flag
+- LLM-backed reflection and summarization via Spring AI (optional, requires API key)
 
 ## Core ideas
 
-- **Cognition before interaction**  
-  Decide whether to speak before generating a reply.
-
-- **Curated memory, not raw logging**  
-  Store meaning selectively. Do not persist everything by default.
-
-- **Explainable behavior**  
-  Every intervention should have a reason.
-
-- **Partner stance**  
-  The system avoids command-style, judgmental, or owner/slave behavior.
-
-- **Modular cognition**  
-  Perception, decision, memory, routing, and agents stay separate and auditable.
+- **Cognition before interaction** — decide whether to speak before generating a reply.
+- **Curated memory, not raw logging** — store meaning selectively.
+- **Explainable behavior** — every intervention has a reason.
+- **Partner stance** — no command-style or owner/slave behavior.
+- **Modular cognition** — perception, decision, memory, routing, and agents stay separate and auditable.
 
 ## Architecture
 
-Implemented request flow:
+```
+Observation intake (POST /api/observe)
+  → CuratedMemoryService    (working memory + candidate curation)
+  → DecisionEngine          (ShouldSpeakPolicy + IntentRouter)
+  → AgentOrchestrator       (select agent by intent)
+  → Agent response
+```
 
-Observation intake (`POST /api/observe`) → `CuratedMemoryService` (working memory + candidate curation) → `DecisionEngine` (`ShouldSpeakPolicy` + `IntentRouter`) → `AgentOrchestrator` → selected agent response
+Ambient mode adds a parallel path:
 
-Long-term memory is review-first: observations may become pending `memory_candidate` records, and only accepted candidates are materialized into `episodic_memory`.
-
-Current behavior is intentionally rule-based and explainable. Live recall is grounded in recent working memory today; episodic retrieval and model-assisted cognition remain extension points.
+```
+Room audio (AudioContext VAD in browser)
+  → MediaRecorder
+  → POST /api/voice/transcribe  (Whisper STT)
+  → POST /api/observe           (source: "room")
+  → same cognitive loop
+```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full component diagram and runtime details.
 
-## Agent layer (current)
+## Agent layer
 
-* **MemoryCaptureAgent** — handles explicit “remember this” style observations.
-* **MemoryRecallAgent** — answers simple recall requests from recent working memory.
-* **ReflectionAgent** — produces restrained reflective responses for questions and general prompts.
+- **MemoryCaptureAgent** — handles explicit "remember this" observations.
+- **MemoryRecallAgent** — answers recall requests from recent working memory.
+- **ReflectionAgent** — produces restrained reflective responses; uses Spring AI when available.
 
 ## Tech stack
 
-* Java 21
-* Spring Boot
-* Spring Validation
-* Spring JDBC
-* PostgreSQL
-* pgvector
-* Flyway
-* Spring AI
+| | |
+|---|---|
+| Runtime | Java 21, Spring Boot 3.x |
+| DB | PostgreSQL + pgvector + Flyway |
+| AI | Spring AI 1.1.2 (OpenAI chat, Whisper STT, TTS) |
+| Frontend | Thymeleaf demo page; Web Speech API fallback |
 
 ## Run locally
 
 ### Prerequisites
 
-* Java 21
-* Maven
-* PostgreSQL with `pgvector` extension
-
-### Database
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-Run DB migrations
-
-- Flyway migrations live in `src/main/resources/db/migration`.
-- Spring Boot will run Flyway automatically on startup if the database is reachable.
-- To run migrations manually with Maven (example):
-
-```bash
-mvn -Dflyway.url=${DATABASE_URL} -Dflyway.user=${DATABASE_USER} -Dflyway.password=${DATABASE_PASSWORD} flyway:migrate
-```
-
-Additional migration notes
--------------------------
-
-This project includes an optional migration that enables Postgres trigram fuzzy matching (pg_trgm) and creates a GIN trigram index to speed up similarity searches for memory candidate summaries:
-
-- `V3__add_pg_trgm_and_trigram_index.sql` — installs `pg_trgm` and creates a GIN index on `lower(summary)` for rows where `status = 'PENDING'`.
-
-Some managed Postgres providers require elevated permissions to run `CREATE EXTENSION`. If your hosting provider blocks `CREATE EXTENSION pg_trgm`, you can either ask your DBA/operator to enable it or skip applying V3 — the system will still work using exact-match checks but without fast fuzzy matching.
-
-Configuration: similarity threshold
------------------------------------
-
-Fuzzy duplicate detection uses a configurable similarity threshold. Default is `0.45`.
-
-Set via Spring property `memory.duplicate.similarity.threshold` or environment variable `MEMORY_DUPLICATE_SIMILARITY_THRESHOLD` (e.g. `0.55` for stricter matching).
-
-Example env var:
-
-```bash
-export MEMORY_DUPLICATE_SIMILARITY_THRESHOLD=0.5
-```
-
-Applying V3 on managed Postgres — step-by-step
-----------------------------------------------
-
-1. Verify whether `pg_trgm` is already available
-
-  Connect to the database (use `psql`, provider CLI, or your DB admin tools) and run:
-
-  ```sql
-  -- shows installed extensions
-  SELECT extname FROM pg_extension WHERE extname = 'pg_trgm';
-  -- or list all extensions in psql: \dx
-  ```
-
-2. If `pg_trgm` is available, apply the V3 migration
-
-  - Let the app run migrations automatically on startup, or run Flyway manually:
-
-  ```bash
-  mvn -Dflyway.url=${DATABASE_URL} -Dflyway.user=${DATABASE_USER} -Dflyway.password=${DATABASE_PASSWORD} flyway:migrate
-  ```
-
-3. If `pg_trgm` is not available or `CREATE EXTENSION` fails
-
-  - Many managed Postgres providers allow `CREATE EXTENSION pg_trgm`; some require operator intervention.
-  - Example commands you (or your DBA) can run (replace connection/instance placeholders):
-
-  ```bash
-  # psql (local or direct connection)
-  psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-
-  # Docker (when Postgres runs in a container)
-  docker exec -it <pg-container> psql -U <user> -d <db> -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-
-  # Heroku example
-  heroku pg:psql -a <app-name> -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-  ```
-
-  - If you cannot run `CREATE EXTENSION` due to provider restrictions, open a support ticket or ask your DBA to enable `pg_trgm` for your database instance. The application will continue to work without V3, but fuzzy duplicate detection will be disabled and only exact-match checks will run.
-
-4. Verify the trigram index exists
-
-  ```sql
-  SELECT indexname
-  FROM pg_indexes
-  WHERE tablename = 'memory_candidate' AND indexname = 'idx_memory_candidate_summary_trgm';
-  ```
-
-5. Adjust similarity threshold if desired
-
-  - Tune `memory.duplicate.similarity.threshold` via `application.yml` or environment variable `MEMORY_DUPLICATE_SIMILARITY_THRESHOLD` and restart the app.
-
-If you'd like, I can add a short troubleshooting section for common provider errors (RDS/GCP/Azure/Heroku) or create a small Testcontainers-based integration test to validate fuzzy detection locally.
-
+- Java 21, Maven
+- PostgreSQL with `pgvector` extension
 
 ### Environment variables
 
@@ -185,41 +85,58 @@ If you'd like, I can add a short troubleshooting section for common provider err
 export DATABASE_URL=jdbc:postgresql://localhost:5432/cognitive_ai
 export DATABASE_USER=postgres
 export DATABASE_PASSWORD=postgres
+export OPENAI_API_KEY=sk-...   # optional — enables LLM responses + Whisper + TTS
 ```
 
 ### Start
 
 ```bash
 mvn spring-boot:run
+# or skip tests
+mvn -DskipTests spring-boot:run
 ```
 
-### Interactive console (new)
+Open the demo UI at **http://localhost:8080/demo**.
 
-An interactive console loop is now available on application startup. The `CognitiveLoopRunner` component starts when the app launches and provides a simple prompt-based loop for manual testing and demos.
-
-Usage:
+### Docker Compose
 
 ```bash
-# from the project root
-mvn -DskipTests spring-boot:run
-
-# or run the packaged JAR
-java -jar target/cognitive-ai-0.0.1-SNAPSHOT.jar
+docker compose up --build
 ```
 
-Then type at the prompt and press Enter. Example session:
+### Database setup
 
+Flyway migrations run automatically on startup. For pg_trgm (fuzzy duplicate detection) and managed Postgres notes, see [docs/DATABASE_SETUP.md](docs/DATABASE_SETUP.md).
+
+### Interactive console
+
+The `CognitiveLoopRunner` starts on application startup and provides a prompt loop:
+
+```
 User: hello
 Avery: Hello. How can I help you?
+```
 
-Notes:
-- The interactive loop currently uses a temporary forced policy (`ForcedShouldSpeakPolicy`) that makes the system respond to every input. TODO: re-enable intelligent filtering later.
-- Each conversation turn is stored into the core episodic memory via `CuratedMemoryService` (input + response) so you can test recall and the memory pipeline end-to-end.
-- To stop the interactive loop for production testing, run the app with a different configuration or remove/disable the forced policy bean.
+> Note: currently uses `ForcedShouldSpeakPolicy` — the system responds to every input. Re-enabling intelligent filtering is a planned next step.
 
-## Example API
+## Demo UI
 
-### Observe
+Open **http://localhost:8080/demo** after starting the app.
+
+**Text mode** — type an observation, see the full cognitive response (decision, intent, agent, reasons).
+
+**Voice mode** (🎙 toggle):
+- Click 🎤 to record, 🔴 to stop and transcribe.
+- Requires `OPENAI_API_KEY` for Whisper + TTS; falls back to browser `SpeechRecognition` / `speechSynthesis` in Chrome/Edge without a key.
+
+**Ambient mode** (always-on listening):
+- Activates passive room-level VAD — any speech is captured and fed into the cognitive pipeline as `source: "room"`.
+- Volume meter, ambient feed of last captured observations, optional TTS responses.
+- Red privacy banner is displayed while active.
+
+## API
+
+### POST /api/observe
 
 ```bash
 curl -X POST http://localhost:8080/api/observe \
@@ -231,7 +148,7 @@ curl -X POST http://localhost:8080/api/observe \
   }'
 ```
 
-### Example response
+Response (SPEAK):
 
 ```json
 {
@@ -239,81 +156,73 @@ curl -X POST http://localhost:8080/api/observe \
   "confidence": 0.9,
   "intent": "MEMORY_CAPTURE",
   "agent": "MemoryCaptureAgent",
-  "message": "I’ll treat that as something worth remembering and reviewing.",
+  "message": "I'll treat that as something worth remembering and reviewing.",
   "reasons": [
     "Explicit remember request present",
-    "Intent routed to MEMORY_CAPTURE",
-    "Observation was routed to memory capture",
-    "This supports curated memory rather than raw logging"
+    "Intent routed to MEMORY_CAPTURE"
   ]
 }
 ```
 
-### Review pending memory candidates
+### Memory review
 
 ```bash
+# list pending candidates
 curl http://localhost:8080/api/memory/candidates
+
+# accept
+curl -X POST http://localhost:8080/api/memory/candidates/<id>/accept \
+  -H "Content-Type: application/json" \
+  -d '{"note": "Useful for long-term memory"}'
+
+# reject
+curl -X POST http://localhost:8080/api/memory/candidates/<id>/reject \
+  -H "Content-Type: application/json" \
+  -d '{"note": "Too transient"}'
 ```
 
-### Accept a memory candidate
+### Voice endpoints
 
 ```bash
-curl -X POST http://localhost:8080/api/memory/candidates/<candidate-id>/accept \
+# transcribe audio to text (Whisper)
+curl -X POST http://localhost:8080/api/voice/transcribe \
+  -F "audio=@recording.webm"
+
+# text to speech (returns audio/mpeg)
+curl -X POST http://localhost:8080/api/voice/speak \
   -H "Content-Type: application/json" \
-  -d '{
-    "note": "Looks useful for long-term memory"
-  }'
+  -d '{"text": "Hello, how can I help?"}' \
+  --output response.mp3
 ```
 
-### Reject a memory candidate
+### AI health
 
 ```bash
-curl -X POST http://localhost:8080/api/memory/candidates/<candidate-id>/reject \
-  -H "Content-Type: application/json" \
-  -d '{
-    "note": "Too transient to keep"
-  }'
+curl http://localhost:8080/api/ai/status
 ```
 
-## Why this repo is called Cognitive AI
+Returns `available`, `clientPresent`, `apiKeySet`, `voiceEnabled`, and `model`.
 
-This project aims to demonstrate a minimal cognitive loop:
+For the full sample library see [SAMPLES.md](SAMPLES.md).
 
-* observe
-* decide
-* route
-* act
-* remember selectively
+## Documentation
 
-It is still early-stage, but it already goes beyond plain request/response by separating:
-
-* should the system respond at all?
-* what kind of intent is present?
-* which agent should handle it?
-* what should be remembered?
-
-## Roadmap
-
-* richer intent classification
-* episodic memory retrieval
-* semantic memory search
-* values-and-boundaries enforcement in orchestration
-* voice-first interface
-* LLM-backed reflection and summarization
-* policy-driven memory acceptance
+| File | Content |
+|------|---------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Component diagram, request flow, memory architecture |
+| [COGNITIVE-AI.md](COGNITIVE-AI.md) | What cognitive AI is, how it differs from traditional AI |
+| [DEMO_FLOW.md](DEMO_FLOW.md) | Sequence diagram and demo script |
+| [ROADMAP.md](ROADMAP.md) | Milestones and near/medium/long-term plans |
+| [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) | Runtime components and how to toggle policies |
+| [SAMPLES.md](SAMPLES.md) | curl examples |
+| [docs/DATABASE_SETUP.md](docs/DATABASE_SETUP.md) | pg_trgm, Flyway, managed Postgres notes |
 
 ## Contribution
 
-Small, auditable pull requests are preferred.
+Small, auditable pull requests preferred.
 
-Good contributions:
-
-* clearer routing rules
-* better tests
-* safer memory policies
-* stronger explainability
-* improved recall behavior
+Good contributions: clearer routing rules, better tests, safer memory policies, stronger explainability, improved recall behavior.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT
