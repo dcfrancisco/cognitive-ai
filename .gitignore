@@ -35,3 +35,4 @@ logs/
 *~
 *.tmp
 .github/copilot-instructions.md
+.github/prompts/
