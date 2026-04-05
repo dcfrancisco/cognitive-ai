@@ -35,4 +35,4 @@ logs/
 *~
 *.tmp
 .github/copilot-instructions.md
-.github/prompts/plan-memoryRetrievalRefactor.prompt.md
+.github/prompts/
