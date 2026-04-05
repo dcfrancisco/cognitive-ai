@@ -34,6 +34,9 @@ public class SpringAiResponseService {
         }
 
         StringBuilder userPrompt = new StringBuilder();
+        String ctx = buildContextBlock(observation);
+        if (!ctx.isEmpty())
+            userPrompt.append(ctx).append("\n\n");
         userPrompt.append("User request:\n");
         userPrompt.append(content).append("\n\n");
         if (items != null && !items.isEmpty()) {
@@ -62,10 +65,50 @@ public class SpringAiResponseService {
                 .map(item -> "- [" + item.source() + "] " + item.content())
                 .collect(Collectors.joining("\n"));
 
-        String userPrompt = "User request:\n" + content
+        String ctx = buildContextBlock(observation);
+        String userPrompt = (ctx.isEmpty() ? "" : ctx + "\n\n")
+                + "User request:\n" + content
                 + "\n\nRecent working memory:\n" + memoryLines;
 
         return callModel(buildRecallSystemPrompt(), userPrompt);
+    }
+
+    private String buildContextBlock(Observation observation) {
+        if (observation == null)
+            return "";
+        StringBuilder sb = new StringBuilder();
+        if (StringUtils.hasText(observation.timestamp())) {
+            sb.append("[Context]");
+            sb.append("\n- Current time: ").append(observation.timestamp());
+            if (StringUtils.hasText(observation.location())) {
+                sb.append("\n- Location: ").append(observation.location());
+            }
+        } else if (StringUtils.hasText(observation.location())) {
+            sb.append("[Context]");
+            sb.append("\n- Location: ").append(observation.location());
+        }
+        return sb.toString();
+    }
+
+    public Optional<CognitiveIntent> classifyIntent(String content) {
+        if (!StringUtils.hasText(content)) {
+            return Optional.empty();
+        }
+        String system = "You are an intent classifier. Given a user message, reply with exactly one of these labels and nothing else:\n"
+                + "MEMORY_CAPTURE — the user wants to store or record information\n"
+                + "MEMORY_RECALL  — the user is asking about past information, preferences, or what was said before\n"
+                + "REFLECTION     — the user is asking a reflective or open-ended question\n"
+                + "GENERAL_RESPONSE — anything else\n\n"
+                + "Reply with only the label, no punctuation, no explanation.";
+        return callModel(system, content).map(raw -> {
+            String label = raw.trim().toUpperCase(java.util.Locale.ROOT)
+                    .replaceAll("[^A-Z_]", "");
+            try {
+                return CognitiveIntent.valueOf(label);
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }).filter(i -> i != null);
     }
 
     public Optional<String> summarizeMemoryCandidate(String content) {
@@ -94,10 +137,13 @@ public class SpringAiResponseService {
             return Optional.empty();
         }
 
-        // NOTE: Spring AI 1.1.2 serializes extraBody={} into every ChatCompletionRequest,
-        // which causes HTTP 400 "Unrecognized request argument supplied: extra_body" from
+        // NOTE: Spring AI 1.1.2 serializes extraBody={} into every
+        // ChatCompletionRequest,
+        // which causes HTTP 400 "Unrecognized request argument supplied: extra_body"
+        // from
         // the OpenAI Chat Completions API. Until this is fixed upstream, bypass the
-        // ChatClient and use the direct Responses API call which does not have this issue.
+        // ChatClient and use the direct Responses API call which does not have this
+        // issue.
         return callOpenAiDirect(systemPrompt, userPrompt);
     }
 

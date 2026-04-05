@@ -3,11 +3,22 @@ package ph.francisco.agents;
 import ph.francisco.perception.Observation;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class IntentRouterTest {
 
-    private final IntentRouter router = new IntentRouter();
+    // Use a mock that returns empty so the keyword fallback is exercised
+    private final SpringAiResponseService aiService = mock(SpringAiResponseService.class);
+    private final IntentRouter router = new IntentRouter(aiService);
+
+    {
+        when(aiService.classifyIntent(anyString())).thenReturn(Optional.empty());
+    }
 
     @Test
     void routesExplicitRememberToMemoryCapture() {

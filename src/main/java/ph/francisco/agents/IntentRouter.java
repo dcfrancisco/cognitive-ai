@@ -8,14 +8,31 @@ import java.util.Locale;
 @Component
 public class IntentRouter {
 
+    private final SpringAiResponseService springAiResponseService;
+
+    public IntentRouter(SpringAiResponseService springAiResponseService) {
+        this.springAiResponseService = springAiResponseService;
+    }
+
     public CognitiveIntent route(Observation observation) {
         String content = observation.content() == null ? "" : observation.content().trim();
         String lower = content.toLowerCase(Locale.ROOT);
 
+        // Explicit flag always wins — no LLM call needed
         if (Boolean.TRUE.equals(observation.explicitRemember())) {
             return CognitiveIntent.MEMORY_CAPTURE;
         }
 
+        // Try LLM classification first
+        return springAiResponseService.classifyIntent(content)
+                .orElseGet(() -> keywordFallback(lower, content));
+    }
+
+    /**
+     * Keyword-based fallback used when no API key is configured or LLM is
+     * unavailable.
+     */
+    private CognitiveIntent keywordFallback(String lower, String content) {
         if (lower.contains("remember this")
                 || lower.contains("please remember")
                 || lower.contains("note this")) {
