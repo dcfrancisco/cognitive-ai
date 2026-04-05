@@ -52,8 +52,9 @@ public class CuratedMemoryService {
         String summary = summarizeMeaning(combined);
         String rationale = "Conversation turn stored (input+response)";
         var tags = List.of("interaction", "agent:" + (response == null ? "unknown" : response.agent()));
+        String source = observation == null ? "system" : observation.source();
 
-        episodicMemoryRepository.insert(UUID.randomUUID(), summary, rationale, tags);
+        episodicMemoryRepository.insert(UUID.randomUUID(), summary, rationale, tags, source, "INTERACTION");
     }
 
     public void observe(Observation observation) {
@@ -183,7 +184,9 @@ public class CuratedMemoryService {
         // Only accept if it's currently pending to avoid accidental re-accepts.
         if (found.status() == MemoryCandidate.Status.PENDING) {
             candidateRepository.mark(id, MemoryCandidate.Status.ACCEPTED, reviewerNote);
-            episodicMemoryRepository.insert(UUID.randomUUID(), found.summary(), found.rationale(), found.tags());
+            String source = found.source() != null ? found.source() : "system";
+            episodicMemoryRepository.insert(UUID.randomUUID(), found.summary(), found.rationale(), found.tags(), source,
+                    "CANDIDATE_ACCEPTED");
         }
     }
 

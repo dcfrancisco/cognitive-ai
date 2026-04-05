@@ -18,6 +18,7 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - **v0.3a: Multimodal perception foundation:** text, audio, and vision sensor interfaces, perception normalization layer, audio (STT) prototype integration, basic vision caption/detection integration, unified Observation pipeline.
 - **v0.3:** simple UI / demo page for observing the cognitive loop in action.
 - **v0.5:** semantic memory (RAG), Spring AI integration, basic TTS/STT adapter demo, optional LLM-assisted reflection. ✅ **Voice conversation** added to demo UI (OpenAI Whisper STT + TTS; Web Speech API fallback). `GET /api/ai/status` returns `voiceEnabled` flag. `POST /api/voice/transcribe` and `POST /api/voice/speak` endpoints live. ✅ **Ambient room listening** — always-on VAD in demo UI captures speech from anyone in the room and feeds it into the cognitive pipeline as `source: "room"` observations.
+- **v0.6:** structured episodic memory retrieval — pgvector semantic recall, `EmbeddingProvider` interface (swap OpenAI for custom LLM), `MemoryRetrievalService`, recall tracking (`recall_count`, `last_recalled_at`), ILIKE keyword fallback for null-embedding rows. `MemoryRecallAgent` now uses both working memory and long-term episodic memory.
 - **v0.7:** richer orchestration, improved recall, LLM-assisted memory review, stronger observability.
 - **v1.0:** hardened release — CI/CD, integration tests, deployable container, docs, examples, and public-project polish.
 
@@ -56,6 +57,15 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 - Production-grade multi-turn (RAG, longer context, safety, observability): **2–3 months**.
 
 
+## Current focus (v0.6 — Episodic Memory Retrieval)
+- Add structured fields to `episodic_memory` (`memory_type`, `importance`, `source`, `last_recalled_at`, `recall_count`, `metadata`) via Flyway V4.
+- Introduce `EmbeddingProvider` interface + `SpringAiEmbeddingProvider` — single swap point for future custom LLM.
+- Generate and store embeddings on every episodic memory write (`storeInteraction`, `acceptCandidate`).
+- Implement `MemoryRetrievalService`: vector similarity search (pgvector `<=>`) with ILIKE fallback.
+- Wire `MemoryRecallAgent` to use both working memory and episodic memory in responses.
+- Track memory usage: `recall_count` and `last_recalled_at` updated on every retrieval.
+
+
 ## Medium-term (3–6 months)
 - Improve memory-review rules; add LLM-assisted review workflow.
 - Add **LLM integration layer** for:
@@ -65,7 +75,7 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
   - optional decision support (kept auditable and bounded by policy)
 - Add TTS/STT integration and a voice-first demo loop.
 - Add metrics and observability for decisions and memory retention.
-- Improve recall behavior beyond recent working memory.
+- Improve recall behavior beyond recent working memory. ✅ **In progress** — episodic memory retrieval via pgvector (v0.6).
 - Add better policy controls for when LLM assistance is allowed vs disabled.
 - Real STT integration for `AudioSensor`.
 - Vision captioning or object detection integration.
@@ -74,6 +84,7 @@ Build an ambient, partner-style cognitive AI that senses context, reasons over c
 
 ## Long-term (6+ months)
 - External integrations (mobile, desktop voice agents), privacy/consent flows.
+- **Build own LLM** — replace `SpringAiEmbeddingProvider` with custom embedding model; retrieval and memory pipeline require no changes due to `EmbeddingProvider` interface.
 - Evaluate federated/local embeddings for privacy-preserving memory.
 - Production-grade scaling and RBAC for multi-user scenarios.
 - Expand from rule-based cognition to hybrid cognition:

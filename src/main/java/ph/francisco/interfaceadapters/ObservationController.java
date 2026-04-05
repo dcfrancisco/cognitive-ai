@@ -8,6 +8,7 @@ import ph.francisco.cognition.DecisionEngineResult;
 import ph.francisco.memory.CuratedMemoryService;
 import ph.francisco.memory.ConversationMemoryService;
 import ph.francisco.perception.Observation;
+import java.time.Instant;
 import java.util.UUID;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -37,13 +38,19 @@ public class ObservationController {
 
     @PostMapping("/observe")
     public ResponseEntity<?> observe(@Valid @RequestBody Observation observation) {
+        // Stamp server time when the client does not provide one
+        String timestamp = (observation.timestamp() != null && !observation.timestamp().isBlank())
+                ? observation.timestamp()
+                : Instant.now().toString();
+
         // Ensure a sessionId exists for multi-turn/demo scenarios
         String sessionId = observation.sessionId();
         if (sessionId == null || sessionId.isBlank()) {
             sessionId = UUID.randomUUID().toString();
-            observation = new Observation(observation.source(), observation.content(), observation.explicitRemember(),
-                    sessionId);
         }
+
+        observation = new Observation(observation.source(), observation.content(),
+                observation.explicitRemember(), sessionId, timestamp, observation.location());
 
         curatedMemoryService.observe(observation);
 

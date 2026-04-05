@@ -357,6 +357,7 @@
           content: document.getElementById("content").value,
           explicitRemember: document.getElementById("explicitRemember").checked,
           sessionId: localStorage.getItem("cognitive_session_id") || null,
+          ...currentContext(),
         };
 
         const response = await fetch("/api/observe", {
@@ -659,6 +660,29 @@
       }
 
       refreshMemory();
+
+      // ── Context: time + location ──────────────────────────────────────────────
+      let cachedLocation = null;
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            cachedLocation =
+              pos.coords.latitude.toFixed(4) +
+              "," +
+              pos.coords.longitude.toFixed(4);
+          },
+          () => {
+            /* permission denied or unavailable — leave null */
+          },
+          { timeout: 5000 },
+        );
+      }
+      function currentContext() {
+        return {
+          timestamp: new Date().toISOString(),
+          location: cachedLocation || null,
+        };
+      }
 
       // ── Voice mode ────────────────────────────────────────────────────────────
       let voiceMode = false;
@@ -1086,6 +1110,7 @@
           content: text,
           explicitRemember: false,
           sessionId: localStorage.getItem("cognitive_session_id") || null,
+          ...currentContext(),
         };
         let response = null;
         try {
